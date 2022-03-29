@@ -1,0 +1,43 @@
+{{define "header"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <title>{{.Title}}</title>
+    <style>
+        * { padding: 0; margin: 0 }
+        html { touch-action: manipulation; }
+        a { color: green; text-decoration: none; }
+        body { display: flex; flex-direction: column;
+            width: 100vw; height: 100vh; }
+
+        header { display: flex; justify-content: flex-start; align-items: center;
+            width: 100%; height: 5vh; }
+        header, footer { background-color: #b0f0b0; }
+        nav { margin-left: 10px; }
+        .nav-item { padding: 10px 10px; }
+
+        main { flex: 1; overflow: auto; }
+
+        .form { display: flex; flex-direction: column; align-items: center;
+            margin: 10px auto; padding: 10px; width: fit-content;
+            background-color: #b0f0b0; border-radius: 10px; }
+        .form input, .form button { margin: 5px 5px; }
+        .form input { padding: 3px 10px; }
+        .form button { padding: 3px 10px; }
+
+        footer { display: flex; justify-content: flex-end; align-items: center; }
+        .footer-item { margin: 5px 10px; }
+    </style>{{with .CssInternal}}
+    <style>{{range $css := .}}
+        {{.}}{{end}}
+    </style>{{end}}{{range $css := .CssExternal}}
+    <link rel="stylesheet" href="/css/{{$css}}.css">{{end}}
+</head>
+<body>
+<header>
+    <nav>{{range $nav := .Navigation}}
+        <a class="nav-item" href="{{$nav.Path}}">{{$nav.Label}}</a>{{end}}
+    </nav>
+</header>
+<main>{{end}}

@@ -1,0 +1,8 @@
+{{define "page_signup"}}{{template "header" .Header}}
+<form action="/signup" method="post" class="form">
+    <input name="username" type="text" placeholder="username" autofocus="autofocus">
+    <input name="password" type="password" placeholder="password">
+    <input name="repeat_password" type="password" placeholder="repeat password">
+    <button type="submit">Sign up</button>
+</form>
+{{template "footer" .Footer}}{{end}}
