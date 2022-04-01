@@ -1,8 +1,9 @@
 {{define "page_signup"}}{{template "header" .Header}}
-<form action="/signup" method="post" class="form">
+<form action="/signup" method="post" class="form center">
     <input name="username" type="text" placeholder="username" autofocus="autofocus">
     <input name="password" type="password" placeholder="password">
     <input name="repeat_password" type="password" placeholder="repeat password">
     <button type="submit">Sign up</button>
-</form>
+{{with .Data.ErrorMessage}}    <p class="error">{{.}}</p>
+{{end}}</form>
 {{template "footer" .Footer}}{{end}}

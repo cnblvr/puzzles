@@ -1,0 +1,17 @@
+{{define "page_settings"}}{{template "header" .Header}}
+<form action="/settings" method="post" class="form" autocomplete="off"><ul class="list-checkbox">{{range $session := .Data.Sessions}}
+    <li>
+        <input type="checkbox" id="id{{$session.Name}}" name="{{$session.Name}}" value="terminate">
+        <label for="id{{$session.Name}}">
+            <p>ID: {{if $session.Active}}<b>{{end}}{{$session.Name}}{{if $session.Active}}</b>{{end}}</p>
+            <p>First used: {{$session.CreatedAt.Format "2006-01-02 15:04:05 MST"}}</p>
+            <p>Recent activity: {{$session.RecentActivity.Format "2006-01-02 15:04:05 MST"}}</p>{{if $session.Active}}
+            <p>(active session)</p>{{end}}
+        </label>
+    </li>
+    {{end}}</ul>
+    <button type="submit" name="action_terminate" value="selected">Terminate sessions</button>
+    <button type="submit" name="action_terminate" value="expect_current">Terminate all sessions except the current one.</button>
+{{with .Data.ErrorMessage}}    <p class="error">{{.}}</p>
+{{end}}</form>
+{{template "footer" .Footer}}{{end}}

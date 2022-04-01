@@ -11,6 +11,14 @@
         body { display: flex; flex-direction: column;
             width: 100vw; height: 100vh; }
 
+        .notification { position: fixed; top: 20px; right: 20px;
+            color: white; background-color: #0099fe;
+            padding: 10px; margin: 10px;
+            border-radius: 10px; }
+        .notification.error { color: white; background-color: #cd0001; }
+        .notification.warning { color: white; background-color: #fd6800; }
+        .notification.success { color: white; background-color: #35901d; }
+
         header { display: flex; justify-content: flex-start; align-items: center;
             width: 100%; height: 5vh; }
         header, footer { background-color: #b0f0b0; }
@@ -19,12 +27,18 @@
 
         main { flex: 1; overflow: auto; }
 
-        .form { display: flex; flex-direction: column; align-items: center;
-            margin: 10px auto; padding: 10px; width: fit-content;
+        .form { display: flex; flex-direction: column; align-items: flex-start;
+            margin: 10px auto; padding: 10px; width: fit-content; min-width: 400px;
             background-color: #b0f0b0; border-radius: 10px; }
+        .form.center { align-items: center; }
         .form input, .form button { margin: 5px 5px; }
         .form input { padding: 3px 10px; }
         .form button { padding: 3px 10px; }
+        .form .error { color: #c70000; }
+        ul.list-checkbox { display: flex; flex-direction: column; }
+        ul.list-checkbox li { display: flex; flex-direction: row; margin: 7px 0; }
+        ul.list-checkbox li input { display: block; justify-content: center; }
+        ul.list-checkbox li label { display: block; justify-content: flex-start; }
 
         footer { display: flex; justify-content: flex-end; align-items: center; }
         .footer-item { margin: 5px 10px; }
@@ -34,7 +48,8 @@
     </style>{{end}}{{range $css := .CssExternal}}
     <link rel="stylesheet" href="/css/{{$css}}.css">{{end}}
 </head>
-<body>
+<body>{{with .Notification}}
+<div{{with .Type}} class="notification {{.}}"{{end}}>{{.Message}}</div>{{end}}
 <header>
     <nav>{{range $nav := .Navigation}}
         <a class="nav-item" href="{{$nav.Path}}">{{$nav.Label}}</a>{{end}}

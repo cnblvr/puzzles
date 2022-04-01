@@ -2,6 +2,7 @@ package templates
 
 import (
 	"embed"
+	"github.com/cnblvr/puzzles/app"
 	"html/template"
 )
 
@@ -9,10 +10,11 @@ import (
 var FS embed.FS
 
 const (
-	PageHome   = "page_home"
-	PageError  = "page_error"
-	PageLogin  = "page_login"
-	PageSignup = "page_signup"
+	PageHome     = "page_home"
+	PageError    = "page_error"
+	PageLogin    = "page_login"
+	PageSignup   = "page_signup"
+	PageSettings = "page_settings"
 )
 
 func CommonTemplates() []string {
@@ -20,7 +22,12 @@ func CommonTemplates() []string {
 }
 
 func Functions() template.FuncMap {
-	return template.FuncMap{}
+	return template.FuncMap{
+		"add_internal_css": func(h Header, css ...template.CSS) Header {
+			h.CssInternal = append(h.CssInternal, css...)
+			return h
+		},
+	}
 }
 
 type Params struct {
@@ -30,10 +37,11 @@ type Params struct {
 }
 
 type Header struct {
-	Title       string
-	Navigation  []Navigation
-	CssExternal []string
-	CssInternal []template.CSS
+	Title        string
+	Navigation   []Navigation
+	Notification *app.CookieNotification
+	CssExternal  []string
+	CssInternal  []template.CSS
 }
 
 type Footer struct {

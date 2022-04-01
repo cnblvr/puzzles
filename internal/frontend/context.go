@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"context"
+	"github.com/cnblvr/puzzles/app"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 )
@@ -28,4 +29,36 @@ func FromContextLogger(ctx context.Context) zerolog.Logger {
 		return zlog.Logger
 	}
 	return logger
+}
+
+func NewContextSession(ctx context.Context, session *app.Session) context.Context {
+	return context.WithValue(ctx, "session", session)
+}
+
+func FromContextSession(ctx context.Context) *app.Session {
+	session, ok := ctx.Value("session").(*app.Session)
+	if !ok {
+		return &app.Session{}
+	}
+	return session
+}
+
+func NewContextNotification(ctx context.Context, notification *app.CookieNotification) context.Context {
+	return context.WithValue(ctx, "notification", notification)
+}
+
+func FromContextNotification(ctx context.Context) *app.CookieNotification {
+	n := FromContextNotificationOrNil(ctx)
+	if n == nil {
+		return &app.CookieNotification{}
+	}
+	return n
+}
+
+func FromContextNotificationOrNil(ctx context.Context) *app.CookieNotification {
+	notification, ok := ctx.Value("notification").(*app.CookieNotification)
+	if !ok {
+		return nil
+	}
+	return notification
 }

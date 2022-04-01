@@ -1,8 +1,10 @@
 package app
 
 const (
-	EndpointIndex  = "/"
-	EndpointLogin  = "/login"
-	EndpointSignup = "/signup"
-	EndpointLogout = "/logout"
+	EndpointInternalServerError = "/error"
+	EndpointHome                = "/"
+	EndpointLogin               = "/login"
+	EndpointSignup              = "/signup"
+	EndpointLogout              = "/logout"
+	EndpointSettings            = "/settings"
 )

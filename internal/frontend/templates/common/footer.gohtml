@@ -3,5 +3,13 @@
     <div class="footer-item">github <a href="https://github.com/cnblvr/puzzles">cnblvr/puzzles</a></div>
 </footer>{{range $js := .JsExternal}}
 <script src="/js/{{$js}}.js"></script>{{end}}
+<script>
+    let notification = document.querySelector('.notification');
+    if (notification) {
+        setTimeout(() => {
+            notification.hidden = true;
+        }, 3000);
+    }
+</script>
 </body>
 </html>{{end}}

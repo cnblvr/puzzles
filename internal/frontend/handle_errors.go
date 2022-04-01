@@ -6,6 +6,17 @@ import (
 	"net/http"
 )
 
+func (srv *service) HandleInternalServerError(w http.ResponseWriter, r *http.Request) {
+	srv.executeTemplate(r.Context(), w, templates.PageError, func(params *templates.Params) {
+		params.Header.Title = "Error"
+		params.Data = struct {
+			ErrorMessage string
+		}{
+			ErrorMessage: "Internal server error.",
+		}
+	})
+}
+
 func (srv *service) HandleNotFound(w http.ResponseWriter, r *http.Request) {
 	srv.executeTemplate(r.Context(), w, templates.PageError, func(params *templates.Params) {
 		params.Header.Title = "Error"
