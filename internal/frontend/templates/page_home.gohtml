@@ -1,3 +1,32 @@
 {{define "page_home"}}{{template "header" .Header}}
-home
+<form action="/" method="post" autocomplete="off" class="form center">
+    <ul class="list">
+        <li class="keyvalue">
+            <label for="puzzle_type">Choose a puzzle:</label>
+            <select name="puzzle_type" id="puzzle_type">
+                <option value="sudoku">Sudoku</option>
+                <option value="kakuro" disabled="disabled">Kakuro</option>
+            </select>
+        </li>
+        <li class="keyvalue">
+            <label for="sudoku_type">Choose type of Sudoku:</label>
+            <select name="sudoku_type" id="sudoku_type">
+                <option value="classic">Classic</option>
+                <option value="jigsaw" disabled="disabled">Jigsaw</option>
+                <option value="windoku" disabled="disabled">Windoku</option>
+                <option value="sudoku_x" disabled="disabled">Sudoku X</option>
+            </select>
+        </li>
+        <li class="row">
+            <input type="radio" name="puzzle_level" value="easy" id="puzzle_level_easy" hidden="hidden">
+            <label class="radio" for="puzzle_level_easy">Easy</label>
+            <input type="radio" name="puzzle_level" value="medium" id="puzzle_level_medium" hidden="hidden" checked="checked">
+            <label class="radio" for="puzzle_level_medium">Medium</label>
+            <input type="radio" name="puzzle_level" value="hard" id="puzzle_level_hard" hidden="hidden">
+            <label class="radio" for="puzzle_level_hard">Hard</label>
+        </li>
+    </ul>
+    <button type="submit">Play!</button>{{with .Data.ErrorMessage}}
+    <p class="error">{{.}}</p>{{end}}
+</form>
 {{template "footer" .Footer}}{{end}}

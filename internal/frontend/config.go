@@ -10,6 +10,7 @@ import (
 type Config interface {
 	SecCookieSecrets() ([]byte, []byte, error)
 	RedisUserConn() (string, string, int, error)
+	RedisPuzzleGameConn() (string, string, int, error)
 	PasswordPepper() ([]byte, error)
 }
 
@@ -25,6 +26,7 @@ const (
 	envvarRedisAddress      = "REDIS_ADDRESS"
 	envvarRedisPassword     = "REDIS_PASSWORD"
 	envvarRedisUserDB       = "REDIS_USER_DB"
+	envvarRedisPuzzleDB     = "REDIS_PUZZLE_DB"
 	envvarPasswordPepper    = "PASSWORD_PEPPER"
 )
 
@@ -42,6 +44,10 @@ func (c config) SecCookieSecrets() ([]byte, []byte, error) {
 
 func (c config) RedisUserConn() (string, string, int, error) {
 	return c.redisConn(envvarRedisUserDB)
+}
+
+func (c config) RedisPuzzleGameConn() (string, string, int, error) {
+	return c.redisConn(envvarRedisPuzzleDB)
 }
 
 func (c config) PasswordPepper() ([]byte, error) {

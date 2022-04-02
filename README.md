@@ -6,6 +6,7 @@ echo 'SEC_COOKIE_HASH_KEY='$(head -c 32 /dev/random | base64) >> dev.env
 echo 'SEC_COOKIE_BLOCK_KEY='$(head -c 32 /dev/random | base64) >> dev.env
 echo 'REDIS_ADDRESS=redis:6379' >> dev.env
 echo 'REDIS_USER_DB=0' >> dev.env
+echo 'REDIS_PUZZLE_DB=0' >> dev.env
 echo 'PASSWORD_PEPPER='$(head -c 32 /dev/random | base64) >> dev.env
 # optional: set password for redis
 export REDISPASSWORD=$(head -c 16 /dev/random | base64)

@@ -17,11 +17,12 @@ import (
 )
 
 type service struct {
-	config         Config
-	templates      *template.Template
-	userRepository app.UserRepository
-	secCookie      *securecookie.SecureCookie
-	passwordPepper []byte
+	config               Config
+	templates            *template.Template
+	userRepository       app.UserRepository
+	puzzleGameRepository app.PuzzleGameRepository
+	secCookie            *securecookie.SecureCookie
+	passwordPepper       []byte
 }
 
 func NewService() (app.ServiceFrontend, error) {
@@ -49,6 +50,20 @@ func NewService() (app.ServiceFrontend, error) {
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create user repository")
+	}
+	srv.puzzleGameRepository, err = repository.NewRedisPuzzleGameRepository(func() (redis.Conn, error) {
+		address, password, db, err := srv.config.RedisPuzzleGameConn()
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		return redis.Dial(
+			"tcp", address,
+			redis.DialPassword(password),
+			redis.DialDatabase(db),
+		)
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create puzzle game repository")
 	}
 
 	hashKey, blockKey, err := srv.config.SecCookieSecrets()

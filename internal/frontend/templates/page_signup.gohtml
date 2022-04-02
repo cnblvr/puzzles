@@ -3,7 +3,7 @@
     <input name="username" type="text" placeholder="username" autofocus="autofocus">
     <input name="password" type="password" placeholder="password">
     <input name="repeat_password" type="password" placeholder="repeat password">
-    <button type="submit">Sign up</button>
-{{with .Data.ErrorMessage}}    <p class="error">{{.}}</p>
-{{end}}</form>
+    <button type="submit">Sign up</button>{{with .Data.ErrorMessage}}
+    <p class="error">{{.}}</p>{{end}}
+</form>
 {{template "footer" .Footer}}{{end}}

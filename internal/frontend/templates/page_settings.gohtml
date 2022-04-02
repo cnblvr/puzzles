@@ -1,5 +1,5 @@
 {{define "page_settings"}}{{template "header" .Header}}
-<form action="/settings" method="post" class="form" autocomplete="off"><ul class="list-checkbox">{{range $session := .Data.Sessions}}
+<form action="/settings" method="post" class="form" autocomplete="off"><ul class="list checkbox">{{range $session := .Data.Sessions}}
     <li>
         <input type="checkbox" id="id{{$session.Name}}" name="{{$session.Name}}" value="terminate">
         <label for="id{{$session.Name}}">
@@ -11,7 +11,7 @@
     </li>
     {{end}}</ul>
     <button type="submit" name="action_terminate" value="selected">Terminate sessions</button>
-    <button type="submit" name="action_terminate" value="expect_current">Terminate all sessions except the current one.</button>
-{{with .Data.ErrorMessage}}    <p class="error">{{.}}</p>
-{{end}}</form>
+    <button type="submit" name="action_terminate" value="expect_current">Terminate all sessions except the current one</button>{{with .Data.ErrorMessage}}
+    <p class="error">{{.}}</p>{{end}}
+</form>
 {{template "footer" .Footer}}{{end}}

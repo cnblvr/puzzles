@@ -281,6 +281,10 @@ func (r *redisRepository) keyUserSessions(id int64) string {
 	return fmt.Sprintf("%s:sessions", r.keyUser(id))
 }
 
+func (r *redisRepository) keyUserSolvedPuzzles(id int64) string {
+	return fmt.Sprintf("%s:solved_puzzles", r.keyUser(id))
+}
+
 // keyUsernames returns a key to check for existence of a username.
 // The value type is a hash:
 //  the key as the username (string)

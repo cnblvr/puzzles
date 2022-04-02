@@ -43,7 +43,7 @@ func main() {
 		srv.MiddlewareMustBeLogged,
 	)
 
-	pages.Path(app.EndpointHome).Methods(http.MethodGet).HandlerFunc(srv.HandleHome)
+	pages.Path(app.EndpointHome).Methods(http.MethodGet, http.MethodPost).HandlerFunc(srv.HandleHome)
 	pages.Path(app.EndpointLogin).Methods(http.MethodGet, http.MethodPost).HandlerFunc(srv.HandleLogin)
 	pages.Path(app.EndpointSignup).Methods(http.MethodGet, http.MethodPost).HandlerFunc(srv.HandleSignup)
 	logoutPage.Path(app.EndpointLogout).Methods(http.MethodGet).HandlerFunc(srv.HandleLogout)

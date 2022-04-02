@@ -35,10 +35,16 @@
         .form input { padding: 3px 10px; }
         .form button { padding: 3px 10px; }
         .form .error { color: #c70000; }
-        ul.list-checkbox { display: flex; flex-direction: column; }
-        ul.list-checkbox li { display: flex; flex-direction: row; margin: 7px 0; }
-        ul.list-checkbox li input { display: block; justify-content: center; }
-        ul.list-checkbox li label { display: block; justify-content: flex-start; }
+        ul.list { display: flex; flex-direction: column; width: 100%; }
+        ul.list li { display: flex; flex-direction: row; margin: 7px 0; }
+        ul.list.checkbox li input { display: block; }
+        ul.list.checkbox li label { display: block; }
+        ul.list li.keyvalue { align-items: center; }
+        ul.list li.keyvalue label { margin-right: 10px; white-space: nowrap; }
+        ul.list li.keyvalue select { width: 100%; }
+        ul.list li.row { display: flex; flex-direction: row; justify-content: space-around; }
+        label.radio { border: 1px solid green; border-radius: 10px; padding: 5px 15px; color: green; cursor: pointer; }
+        input[hidden=hidden]:checked + label { background-color: #56D056; color: white; }
 
         footer { display: flex; justify-content: flex-end; align-items: center; }
         .footer-item { margin: 5px 10px; }
