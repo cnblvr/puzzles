@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func NewRedisPuzzleGameRepository(dial func() (redis.Conn, error)) (app.PuzzleGameRepository, error) {
+func NewRedisPuzzleRepository(dial func() (redis.Conn, error)) (app.PuzzleRepository, error) {
 	return newRedisRepository(dial)
 }
 
@@ -23,18 +23,7 @@ func (r *redisRepository) CreateRandomPuzzleGame(ctx context.Context, params app
 		return nil, nil, errors.Errorf("params.Session is nil")
 	}
 
-	var keyForRandom string
-	switch params.Type {
-	case app.PuzzleTypeSudoku:
-		switch params.SudokuType {
-		case app.PuzzleSudokuTypeClassic:
-			keyForRandom = r.keyPuzzleSudokuClassic(params.Level)
-		default:
-			return nil, nil, errors.Errorf("sudoku type '%s' not supported", params.SudokuType.String())
-		}
-	default:
-		return nil, nil, errors.Errorf("puzzle type '%s' not supported", params.Type.String())
-	}
+	keyForRandom := r.keyPuzzleByTypeAndLevel(params.Type, params.Level)
 
 	if params.Session.UserID > 0 {
 		keyTemp := r.keyTemporary()
@@ -85,6 +74,38 @@ func (r *redisRepository) GetPuzzleGame(ctx context.Context, id uuid.UUID) (*app
 		return nil, errors.WithStack(err)
 	}
 	return puzzleGame, nil
+}
+
+func (r *redisRepository) CreatePuzzle(ctx context.Context, params app.CreatePuzzleParams) (*app.Puzzle, error) {
+	conn := r.connect()
+	defer conn.Close()
+
+	id, err := redis.Int64(conn.Do("INCR", r.keyLastPuzzleID()))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to increment puzzle id")
+	}
+
+	// TODO unique app.Puzzle.Solution
+
+	puzzle := &app.Puzzle{
+		ID:       id,
+		Type:     params.Type,
+		Seed:     params.Seed,
+		Level:    params.Level,
+		Meta:     params.Meta,
+		Clues:    params.Clues,
+		Solution: params.Solution,
+	}
+
+	if err := r.setPuzzle(ctx, conn, puzzle); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	if _, err := conn.Do("SADD", r.keyPuzzleByTypeAndLevel(puzzle.Type, puzzle.Level), puzzle.ID); err != nil {
+		return nil, errors.Wrap(err, "failed to add puzzle id in list by type and level")
+	}
+
+	return puzzle, nil
 }
 
 // Errors: app.ErrorPuzzleNotFound, unknown.
@@ -153,12 +174,16 @@ func (r *redisRepository) generatePuzzleGameID(session *app.Session, puzzle *app
 		strconv.FormatInt(puzzle.ID, 10)))
 }
 
+func (r *redisRepository) keyLastPuzzleID() string {
+	return "last_puzzle_id"
+}
+
 func (r redisRepository) keyPuzzle(id int64) string {
 	return fmt.Sprintf("puzzle:%d", id)
 }
 
-func (r redisRepository) keyPuzzleSudokuClassic(level app.PuzzleLevel) string {
-	return fmt.Sprintf("sudoku_classic:%s", level.String())
+func (r redisRepository) keyPuzzleByTypeAndLevel(typ app.PuzzleType, level app.PuzzleLevel) string {
+	return fmt.Sprintf("puzzle_by:%s:%s", typ.String(), level.String())
 }
 
 func (r redisRepository) keyPuzzleGame(id uuid.UUID) string {

@@ -17,17 +17,17 @@ import (
 )
 
 type service struct {
-	config               Config
-	templates            *template.Template
-	userRepository       app.UserRepository
-	puzzleGameRepository app.PuzzleGameRepository
-	secCookie            *securecookie.SecureCookie
-	passwordPepper       []byte
+	config           app.Config
+	templates        *template.Template
+	userRepository   app.UserRepository
+	puzzleRepository app.PuzzleRepository
+	secCookie        *securecookie.SecureCookie
+	passwordPepper   []byte
 }
 
 func NewService() (app.ServiceFrontend, error) {
 	srv := &service{
-		config: NewConfig(),
+		config: app.NewConfig(),
 	}
 
 	var err error
@@ -51,8 +51,8 @@ func NewService() (app.ServiceFrontend, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create user repository")
 	}
-	srv.puzzleGameRepository, err = repository.NewRedisPuzzleGameRepository(func() (redis.Conn, error) {
-		address, password, db, err := srv.config.RedisPuzzleGameConn()
+	srv.puzzleRepository, err = repository.NewRedisPuzzleRepository(func() (redis.Conn, error) {
+		address, password, db, err := srv.config.RedisPuzzleConn()
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}

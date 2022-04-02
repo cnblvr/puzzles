@@ -19,3 +19,7 @@ type ServiceFrontend interface {
 	HandleLogout(w http.ResponseWriter, r *http.Request)
 	HandleSettings(w http.ResponseWriter, r *http.Request)
 }
+
+type ServiceGenerator interface {
+	Run() error
+}

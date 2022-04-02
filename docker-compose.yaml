@@ -22,3 +22,13 @@ services:
       - "8080:8080"
     env_file:
       - dev.env
+
+  generator:
+    build:
+      context: .
+      dockerfile: generator.Dockerfile
+    depends_on:
+      - redis
+    container_name: generator
+    env_file:
+      - dev.env

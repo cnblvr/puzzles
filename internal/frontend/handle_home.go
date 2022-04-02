@@ -10,31 +10,19 @@ import (
 
 type PostHome struct {
 	PuzzleType app.PuzzleType
-	SudokuType app.PuzzleSudokuType
 	Level      app.PuzzleLevel
 }
 
 func (p PostHome) Parse(r *http.Request) PostHome {
 	p.PuzzleType = app.PuzzleType(r.PostFormValue("puzzle_type"))
-	p.SudokuType = app.PuzzleSudokuType(r.PostFormValue("sudoku_type"))
 	p.Level = app.PuzzleLevel(r.PostFormValue("puzzle_level"))
 	return p
 }
 
 func (p *PostHome) Validate() string {
 	switch p.PuzzleType {
-	case app.PuzzleTypeSudoku:
-		switch p.SudokuType {
-		case app.PuzzleSudokuTypeClassic:
-		case app.PuzzleSudokuTypeJigsaw, app.PuzzleSudokuTypeWindoku, app.PuzzleSudokuTypeSudokuX:
-			return fmt.Sprintf("The Sudoku type '%s' is not yet supported.", p.SudokuType)
-		case "":
-			return "Sudoku type is not chosen."
-		default:
-			return fmt.Sprintf("The Sudoku type '%s' is not supported.", p.PuzzleType)
-		}
-
-	case app.PuzzleTypeKakuru:
+	case app.PuzzleSudokuClassic:
+	case app.PuzzleJigsaw, app.PuzzleWindoku, app.PuzzleSudokuX, app.PuzzleKakuro:
 		return fmt.Sprintf("The puzzle type '%s' is not yet supported.", p.PuzzleType)
 	case "":
 		return "Puzzle type is not chosen."
@@ -70,14 +58,12 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			log = log.With().Stringer("puzzle_type", post.PuzzleType).
-				Stringer("sudoku_type", post.SudokuType).
 				Stringer("puzzle_level", post.Level).Logger()
 
-			_, game, err := srv.puzzleGameRepository.CreateRandomPuzzleGame(ctx, app.CreateRandomPuzzleGameParams{
-				Session:    session,
-				Type:       post.PuzzleType,
-				SudokuType: post.SudokuType,
-				Level:      post.Level,
+			_, game, err := srv.puzzleRepository.CreateRandomPuzzleGame(ctx, app.CreateRandomPuzzleGameParams{
+				Session: session,
+				Type:    post.PuzzleType,
+				Level:   post.Level,
 			})
 			switch {
 			case errors.Is(err, app.ErrorPuzzlePoolEmpty):

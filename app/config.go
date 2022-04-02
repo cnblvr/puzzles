@@ -1,4 +1,4 @@
-package frontend
+package app
 
 import (
 	"encoding/base64"
@@ -10,7 +10,7 @@ import (
 type Config interface {
 	SecCookieSecrets() ([]byte, []byte, error)
 	RedisUserConn() (string, string, int, error)
-	RedisPuzzleGameConn() (string, string, int, error)
+	RedisPuzzleConn() (string, string, int, error)
 	PasswordPepper() ([]byte, error)
 }
 
@@ -46,7 +46,7 @@ func (c config) RedisUserConn() (string, string, int, error) {
 	return c.redisConn(envvarRedisUserDB)
 }
 
-func (c config) RedisPuzzleGameConn() (string, string, int, error) {
+func (c config) RedisPuzzleConn() (string, string, int, error) {
 	return c.redisConn(envvarRedisPuzzleDB)
 }
 
