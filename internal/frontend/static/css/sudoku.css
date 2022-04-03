@@ -1,0 +1,140 @@
+#sec-game { display: flex; flex-direction: row; align-items: center; }
+#game-board { width: 80vh; height: 80vh; margin: 1vh; }
+#keyboard { flex-direction: column; }
+@media (orientation: portrait) {
+    #sec-game { flex-direction: column; }
+    #game-board { width: 80vw; height: 80vw; margin: 1vw; }
+    #keyboard { flex-direction: row; }
+}
+@media (max-aspect-ratio: 4/5) {
+    #sec-game { flex-direction: column; }
+    #game-board { width: 95vw; height: 95vw; margin: 1vw; }
+    #keyboard { flex-direction: row; }
+}
+
+.sudoku {
+    display: flex;
+    flex-direction: column;
+
+    border: solid black;
+    border-width: 3px 0 0 3px;
+    user-select: none;
+    min-width: 300px;
+    min-height: 300px;
+}
+.sud-row {
+    display: flex;
+    flex-wrap: nowrap;
+
+    height: 100%;
+}
+.sud-row:nth-child(3n) {
+    border-bottom: 3px solid black;
+}
+.sud-cll:nth-child(3n) {
+    border-right: 3px solid black;
+}
+.sud-cll {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+.sud-cll.active {
+    background: #d0d0d0 !important;
+}
+.sud-cll.hint {
+    background: #f4f4f4;
+}
+.sud-row:nth-child(3n+1), .sud-row:nth-child(3n+2) {
+    border-bottom: 1px solid black;
+}
+.sud-cll:nth-child(3n+1), .sud-cll:nth-child(3n+2) {
+    border-right: 1px solid black;
+}
+
+.sud-dgt {
+    font-size: 36px;
+}
+.sud-cll.error .sud-dgt {
+    color: #ff0000;
+}
+
+.sud-cnd {
+    display: flex;
+    justify-content: space-between;
+    align-items: normal;
+    flex-wrap: wrap;
+    width: 100%;
+    height: 100%;
+    color: #a0a0a0;
+    font-size: 16px;
+}
+.sud-cnd div {
+    flex-basis: calc(100%/3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.sud-cnd div.hidden {
+    opacity: 0;
+}
+
+.sud-cll.is-cnd .sud-dgt {
+    display: none;
+}
+.sud-cll.is-dgt .sud-cnd {
+    display: none;
+}
+
+.keyboard {
+    display: flex;
+    user-select: none;
+}
+.kb-btn {
+    cursor: pointer;
+    border: 1px solid green;
+    border-radius: 100%;
+    background-color: #b0f0b0;
+    margin: 3px;
+    width: 6vh;
+    height: 6vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#cnd-mode.active {
+    background-color: #8ec28e;
+}
+
+@media (orientation: portrait) {
+    .kb-btn {
+        width: 6vw;
+        height: 6vw;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .sud-dgt {
+        font-size: 30px;
+    }
+    .sud-cnd div {
+        font-size: 13px;
+    }
+}
+@media screen and (max-width: 640px) {
+    .sud-dgt {
+        font-size: 25px;
+    }
+    .sud-cnd div {
+        font-size: 13px;
+    }
+}
+@media screen and (max-width: 480px) {
+    .sud-dgt {
+        font-size: 19px;
+    }
+    .sud-cnd div {
+        font-size: 8px;
+    }
+}

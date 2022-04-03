@@ -48,6 +48,8 @@ func main() {
 	pages.Path(app.EndpointSignup).Methods(http.MethodGet, http.MethodPost).HandlerFunc(srv.HandleSignup)
 	logoutPage.Path(app.EndpointLogout).Methods(http.MethodGet).HandlerFunc(srv.HandleLogout)
 	authPages.Path(app.EndpointSettings).Methods(http.MethodGet, http.MethodPost).HandlerFunc(srv.HandleSettings)
+	pages.Path(app.EndpointGameID{}.MuxPath()).Methods(http.MethodGet).HandlerFunc(srv.HandleGameID)
+	pages.Path(app.EndpointGameWs).Methods(http.MethodGet).HandlerFunc(srv.HandleGameWs)
 
 	mwChainError := func(next http.Handler) http.Handler {
 		return srv.MiddlewareReqID(srv.MiddlewareLogger(srv.MiddlewareLogRequest(next)))

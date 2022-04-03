@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-type Generator struct{}
+type SudokuClassic struct{}
 
-func (Generator) Type() app.PuzzleType {
+func (SudokuClassic) Type() app.PuzzleType {
 	return app.PuzzleSudokuClassic
 }
 
-func (Generator) GenerateSolution(ctx context.Context, seed int64, generatedSolutions chan<- app.GeneratedPuzzle) {
+func (SudokuClassic) GenerateSolution(ctx context.Context, seed int64, generatedSolutions chan<- app.GeneratedPuzzle) {
 	// randomizer for solution generation
 	rnd := rand.New(rand.NewSource(seed))
 
@@ -58,7 +58,7 @@ func (Generator) GenerateSolution(ctx context.Context, seed int64, generatedSolu
 	return
 }
 
-func (Generator) GenerateClues(ctx context.Context, seed int64, generatedSolution app.GeneratedPuzzle, generated chan<- app.GeneratedPuzzle) {
+func (SudokuClassic) GenerateClues(ctx context.Context, seed int64, generatedSolution app.GeneratedPuzzle, generated chan<- app.GeneratedPuzzle) {
 	// randomizer for clues generation
 	rnd := rand.New(rand.NewSource(seed))
 
@@ -166,7 +166,7 @@ func getMinMaxCluesOfLevel(l app.PuzzleLevel) (int, int) {
 	}
 }
 
-func (Generator) GetCandidates(ctx context.Context, puzzle string) map[app.Point][]int8 {
+func (SudokuClassic) GetCandidates(ctx context.Context, puzzle string) app.PuzzleCandidates {
 	p := sudokuPuzzleFromString(puzzle)
 	out := make(map[app.Point][]int8)
 	p.findCandidates().forEach(func(point app.Point, candidates []int8) {
@@ -178,7 +178,7 @@ func (Generator) GetCandidates(ctx context.Context, puzzle string) map[app.Point
 	return out
 }
 
-func (Generator) FindUserErrors(ctx context.Context, userState string) []app.Point {
+func (SudokuClassic) FindUserErrors(ctx context.Context, userState string) []app.Point {
 	return sudokuPuzzleFromString(userState).FindUserErrors()
 }
 

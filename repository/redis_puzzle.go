@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"strconv"
-	"time"
 )
 
 func NewRedisPuzzleRepository(dial func() (redis.Conn, error)) (app.PuzzleRepository, error) {
@@ -31,7 +30,7 @@ func (r *redisRepository) CreateRandomPuzzleGame(ctx context.Context, params app
 		if _, err := conn.Do("SDIFFSTORE", keyTemp, keyForRandom, r.keyUserSolvedPuzzles(params.Session.UserID)); err != nil {
 			return nil, nil, errors.Wrap(err, "failed to create list of unsolved puzzles for user")
 		}
-		if _, err := conn.Do("EXPIRE", keyTemp, time.Second*10); err != nil {
+		if _, err := conn.Do("EXPIRE", keyTemp, 10); err != nil {
 			return nil, nil, errors.Wrap(err, "failed to set expiration for list of unsolved puzzles")
 		}
 		keyForRandom = keyTemp
@@ -73,7 +72,54 @@ func (r *redisRepository) GetPuzzleGame(ctx context.Context, id uuid.UUID) (*app
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+
 	return puzzleGame, nil
+}
+
+func (r *redisRepository) GetPuzzle(ctx context.Context, id int64) (*app.Puzzle, error) {
+	conn := r.connect()
+	defer conn.Close()
+
+	puzzle, err := r.getPuzzle(ctx, conn, id)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return puzzle, nil
+}
+
+func (r *redisRepository) GetPuzzleByGameID(ctx context.Context, id uuid.UUID) (*app.Puzzle, error) {
+	conn := r.connect()
+	defer conn.Close()
+
+	puzzleID, err := redis.Int64(conn.Do("HGET", r.keyPuzzleGame(id), "puzzle_id"))
+	if err != nil {
+		return nil, errors.WithStack(app.ErrorPuzzleGameNotFound)
+	}
+
+	puzzle, err := r.getPuzzle(ctx, conn, puzzleID)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return puzzle, nil
+}
+
+func (r *redisRepository) GetPuzzleAndGame(ctx context.Context, id uuid.UUID) (*app.Puzzle, *app.PuzzleGame, error) {
+	conn := r.connect()
+	defer conn.Close()
+
+	puzzleGame, err := r.getPuzzleGame(ctx, conn, id)
+	if err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+
+	puzzle, err := r.getPuzzle(ctx, conn, puzzleGame.PuzzleID)
+	if err != nil {
+		return nil, nil, errors.WithStack(err)
+	}
+
+	return puzzle, puzzleGame, nil
 }
 
 func (r *redisRepository) CreatePuzzle(ctx context.Context, params app.CreatePuzzleParams) (*app.Puzzle, error) {

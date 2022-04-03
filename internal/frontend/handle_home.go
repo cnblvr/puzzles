@@ -77,7 +77,8 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			http.Redirect(w, r, app.EndpointGameID(game.ID), http.StatusSeeOther)
+			http.Redirect(w, r, app.EndpointGameID{}.Path(game.ID), http.StatusSeeOther)
+			return
 		}()
 		if renderData.ErrorMessage == "" {
 			return

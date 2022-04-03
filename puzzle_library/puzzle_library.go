@@ -8,7 +8,16 @@ import (
 func GetGenerator(typ app.PuzzleType) (app.PuzzleGenerator, error) {
 	switch typ {
 	case app.PuzzleSudokuClassic:
-		return sudoku_classic.Generator{}, nil
+		return sudoku_classic.SudokuClassic{}, nil
+	default:
+		return nil, app.ErrorPuzzleTypeUnknown
+	}
+}
+
+func GetAssistant(typ app.PuzzleType) (app.PuzzleAssistant, error) {
+	switch typ {
+	case app.PuzzleSudokuClassic:
+		return sudoku_classic.SudokuClassic{}, nil
 	default:
 		return nil, app.ErrorPuzzleTypeUnknown
 	}

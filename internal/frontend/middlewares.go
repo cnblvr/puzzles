@@ -67,10 +67,7 @@ func (srv *service) MiddlewareCookieSession(next http.Handler) http.Handler {
 			if err != nil {
 				if errors.Is(err, app.ErrorSessionNotFound) {
 					log.Error().Err(err).Msg("session has expired")
-					srv.setCookieNotificationToResponse(w, &app.CookieNotification{
-						Type:    app.NotificationWarning,
-						Message: "Your session has expired.",
-					})
+					srv.setCookieNotificationToResponse(w, app.NotificationWarning, "Your session has expired.")
 					logout()
 					return
 				}
@@ -123,10 +120,8 @@ func (srv *service) MiddlewareMustBeLogged(next http.Handler) http.Handler {
 
 		if session.UserID <= 0 {
 			log.Debug().Msgf("user is not logged")
-			srv.setCookieNotificationToResponse(w, &app.CookieNotification{
-				Type:    app.NotificationError,
-				Message: fmt.Sprintf("The page %s is not allowed for you.", r.URL.Path),
-			})
+			srv.setCookieNotificationToResponse(w, app.NotificationError,
+				fmt.Sprintf("The page %s is not allowed for you.", r.URL.Path))
 			http.Redirect(w, r, app.EndpointHome, http.StatusSeeOther)
 			return
 		}
@@ -180,13 +175,15 @@ func (srv *service) getCookieNotificationFromRequest(r *http.Request) (*app.Cook
 	return notification, nil
 }
 
-func (srv *service) setCookieNotificationToResponse(w http.ResponseWriter, notification *app.CookieNotification) error {
-	cookieValue, err := srv.secCookie.Encode(cookieNotificationName, notification)
+func (srv *service) setCookieNotificationToResponse(w http.ResponseWriter, typ app.NotificationType, msg string) {
+	cookieValue, err := srv.secCookie.Encode(cookieNotificationName, &app.CookieNotification{
+		Type:    typ,
+		Message: msg,
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to encode '%s' cookie", cookieNotificationName)
+		zlog.Error().Err(err).Msgf("failed to encode '%s' cookie", cookieNotificationName)
 	}
 	srv.setCookie(w, cookieNotificationName, cookieValue, time.Minute)
-	return nil
 }
 
 func (srv *service) deleteCookieNotification(w http.ResponseWriter) {

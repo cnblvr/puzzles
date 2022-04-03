@@ -21,12 +21,7 @@ func (srv *service) HandleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 	srv.deleteCookieSession(w)
 	if success {
-		if err := srv.setCookieNotificationToResponse(w, &app.CookieNotification{
-			Type:    app.NotificationSuccess,
-			Message: "You have successfully logged out.",
-		}); err != nil {
-			log.Error().Err(err).Msg("failed to set cookie notification")
-		}
+		srv.setCookieNotificationToResponse(w, app.NotificationSuccess, "You have successfully logged out.")
 	}
 	http.Redirect(w, r, app.EndpointHome, http.StatusSeeOther)
 }

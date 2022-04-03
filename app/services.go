@@ -18,6 +18,8 @@ type ServiceFrontend interface {
 	HandleSignup(w http.ResponseWriter, r *http.Request)
 	HandleLogout(w http.ResponseWriter, r *http.Request)
 	HandleSettings(w http.ResponseWriter, r *http.Request)
+	HandleGameID(w http.ResponseWriter, r *http.Request)
+	HandleGameWs(w http.ResponseWriter, r *http.Request)
 }
 
 type ServiceGenerator interface {

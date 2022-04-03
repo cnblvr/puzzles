@@ -8,6 +8,7 @@ import (
 	"github.com/cnblvr/puzzles/repository"
 	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/securecookie"
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
@@ -21,6 +22,7 @@ type service struct {
 	templates        *template.Template
 	userRepository   app.UserRepository
 	puzzleRepository app.PuzzleRepository
+	gameWebsocket    websocket.Upgrader
 	secCookie        *securecookie.SecureCookie
 	passwordPepper   []byte
 }
@@ -65,6 +67,8 @@ func NewService() (app.ServiceFrontend, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create puzzle game repository")
 	}
+
+	srv.gameWebsocket = websocket.Upgrader{}
 
 	hashKey, blockKey, err := srv.config.SecCookieSecrets()
 	if err != nil {

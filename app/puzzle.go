@@ -11,9 +11,20 @@ import (
 type PuzzleRepository interface {
 	// Errors: ErrorPuzzlePoolEmpty, ErrorPuzzleNotFound, unknown.
 	CreateRandomPuzzleGame(ctx context.Context, params CreateRandomPuzzleGameParams) (*Puzzle, *PuzzleGame, error)
+
 	// Errors: ErrorPuzzleGameNotFound, unknown.
 	GetPuzzleGame(ctx context.Context, id uuid.UUID) (*PuzzleGame, error)
+
 	CreatePuzzle(ctx context.Context, params CreatePuzzleParams) (*Puzzle, error)
+
+	// Errors: ErrorPuzzleNotFound, unknown.
+	GetPuzzle(ctx context.Context, id int64) (*Puzzle, error)
+
+	// Errors: ErrorPuzzleGameNotFound, ErrorPuzzleNotFound, unknown.
+	GetPuzzleByGameID(ctx context.Context, gameID uuid.UUID) (*Puzzle, error)
+
+	// Errors: ErrorPuzzleGameNotFound, ErrorPuzzleNotFound, unknown.
+	GetPuzzleAndGame(ctx context.Context, id uuid.UUID) (*Puzzle, *PuzzleGame, error)
 }
 
 type CreateRandomPuzzleGameParams struct {
@@ -28,6 +39,9 @@ type CreatePuzzleParams struct {
 }
 
 type PuzzleAssistant interface {
+	Type() PuzzleType
+	GetCandidates(ctx context.Context, clues string) PuzzleCandidates
+	FindUserErrors(ctx context.Context, userState string) []Point
 }
 
 type PuzzleGenerator interface {
@@ -61,11 +75,36 @@ type PuzzleGame struct {
 	PuzzleID  int64     `json:"puzzle_id" redis:"puzzle_id"`
 }
 
+// Errors: ErrorPuzzleGameNotAllowed.
+func (g *PuzzleGame) ValidateSession(session *Session) error {
+	if g.UserID > 0 {
+		if g.UserID != session.UserID {
+			return ErrorPuzzleGameNotAllowed
+		}
+	} else {
+		if g.SessionID != session.SessionID {
+			return ErrorPuzzleGameNotAllowed
+		}
+	}
+	return nil
+}
+
+type PuzzleCandidates map[Point][]int8
+
+func (cs PuzzleCandidates) MarshalJSON() ([]byte, error) {
+	out := make(map[string][]int8)
+	for p, c := range cs {
+		out[p.String()] = c
+	}
+	return json.Marshal(out)
+}
+
 var (
-	ErrorPuzzleTypeUnknown  = fmt.Errorf("puzzle type unknown")
-	ErrorPuzzlePoolEmpty    = fmt.Errorf("puzzle pool is empty")
-	ErrorPuzzleNotFound     = fmt.Errorf("puzzle not found")
-	ErrorPuzzleGameNotFound = fmt.Errorf("puzzle game not found")
+	ErrorPuzzleTypeUnknown    = fmt.Errorf("puzzle type unknown")
+	ErrorPuzzlePoolEmpty      = fmt.Errorf("puzzle pool is empty")
+	ErrorPuzzleNotFound       = fmt.Errorf("puzzle not found")
+	ErrorPuzzleGameNotFound   = fmt.Errorf("puzzle game not found")
+	ErrorPuzzleGameNotAllowed = fmt.Errorf("puzzle game not allowed")
 )
 
 type PuzzleType string

@@ -1,0 +1,19 @@
+{{define "page_game_id"}}{{template "header" .Header}}
+<section id="sec-game"><div id="game-board"></div><div id="keyboard"></div></section><p id="_game_id" hidden>{{.Data.GameID}}</p>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        let s = new Sudoku({
+            selector: '#game-board',
+            allowEditing: true,
+            keyboardSelector: '#keyboard',
+            gameID: document.querySelector('#_game_id').textContent
+        });
+        let ws = new WS({
+            url: 'ws://'+location.host+'/game_ws',
+            debug: true,
+            sudoku: s
+        });
+        s.connectWS(ws);
+    });
+</script>
+{{template "footer" .Footer}}{{end}}

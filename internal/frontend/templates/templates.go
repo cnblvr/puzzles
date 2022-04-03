@@ -15,6 +15,7 @@ const (
 	PageLogin    = "page_login"
 	PageSignup   = "page_signup"
 	PageSettings = "page_settings"
+	PageGameID   = "page_game_id"
 )
 
 func CommonTemplates() []string {

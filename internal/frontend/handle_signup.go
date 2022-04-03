@@ -67,12 +67,7 @@ func (srv *service) HandleSignup(w http.ResponseWriter, r *http.Request) {
 				log.Error().Err(err).Send()
 				return msgInternalServerError
 			}
-			if err := srv.setCookieNotificationToResponse(w, &app.CookieNotification{
-				Type:    app.NotificationSuccess,
-				Message: "You have successfully signed up.",
-			}); err != nil {
-				log.Error().Err(err).Msg("failed to set cookie notification")
-			}
+			srv.setCookieNotificationToResponse(w, app.NotificationSuccess, "You have successfully signed up.")
 			http.Redirect(w, r, app.EndpointHome, http.StatusSeeOther)
 			return ""
 		}()

@@ -43,6 +43,18 @@ func FromContextSession(ctx context.Context) *app.Session {
 	return session
 }
 
+func NewContextServiceFrontend(ctx context.Context, srv *service) context.Context {
+	return context.WithValue(ctx, "service_frontend", srv)
+}
+
+func FromContextServiceFrontendOrNil(ctx context.Context) *service {
+	srv, ok := ctx.Value("service_frontend").(*service)
+	if !ok {
+		return nil
+	}
+	return srv
+}
+
 func NewContextNotification(ctx context.Context, notification *app.CookieNotification) context.Context {
 	return context.WithValue(ctx, "notification", notification)
 }
