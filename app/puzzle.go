@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"strconv"
 )
 
@@ -14,6 +15,8 @@ type PuzzleRepository interface {
 
 	// Errors: ErrorPuzzleGameNotFound, unknown.
 	GetPuzzleGame(ctx context.Context, id uuid.UUID) (*PuzzleGame, error)
+
+	UpdatePuzzleGame(ctx context.Context, game *PuzzleGame) error
 
 	CreatePuzzle(ctx context.Context, params CreatePuzzleParams) (*Puzzle, error)
 
@@ -40,8 +43,10 @@ type CreatePuzzleParams struct {
 
 type PuzzleAssistant interface {
 	Type() PuzzleType
-	GetCandidates(ctx context.Context, clues string) PuzzleCandidates
+	GetCandidates(ctx context.Context, clues string) string
 	FindUserErrors(ctx context.Context, userState string) []Point
+	FindUserCandidatesErrors(ctx context.Context, state string, stateCandidates string) string
+	MakeStep(ctx context.Context, state string, stateCandidates string, step PuzzleStep) (string, string, error)
 }
 
 type PuzzleGenerator interface {
@@ -69,10 +74,12 @@ type Puzzle struct {
 }
 
 type PuzzleGame struct {
-	ID        uuid.UUID `json:"id" redis:"-"`
-	SessionID int64     `json:"session_id,omitempty" redis:"session_id"`
-	UserID    int64     `json:"user_id,omitempty" redis:"user_id"`
-	PuzzleID  int64     `json:"puzzle_id" redis:"puzzle_id"`
+	ID              uuid.UUID `json:"id" redis:"-"`
+	SessionID       int64     `json:"session_id,omitempty" redis:"session_id"`
+	UserID          int64     `json:"user_id,omitempty" redis:"user_id"`
+	PuzzleID        int64     `json:"puzzle_id" redis:"puzzle_id"`
+	State           string    `json:"state" redis:"state"`
+	StateCandidates string    `json:"state_candidates" redis:"state_candidates"`
 }
 
 // Errors: ErrorPuzzleGameNotAllowed.
@@ -89,14 +96,28 @@ func (g *PuzzleGame) ValidateSession(session *Session) error {
 	return nil
 }
 
-type PuzzleCandidates map[Point][]int8
+type PuzzleStep struct {
+	Type  StepType `json:"type"`
+	Point Point    `json:"point"`
+	Digit int8     `json:"digit"`
+}
 
-func (cs PuzzleCandidates) MarshalJSON() ([]byte, error) {
-	out := make(map[string][]int8)
-	for p, c := range cs {
-		out[p.String()] = c
+type StepType string
+
+const (
+	StepSetDigit        StepType = "set_digit"
+	StepDeleteDigit     StepType = "del_digit"
+	StepSetCandidate    StepType = "set_cand"
+	StepDeleteCandidate StepType = "del_cand"
+)
+
+func (t StepType) Validate() error {
+	switch t {
+	case StepSetDigit, StepDeleteDigit, StepSetCandidate, StepDeleteCandidate:
+	default:
+		return errors.Errorf("unknown step type")
 	}
-	return json.Marshal(out)
+	return nil
 }
 
 var (
@@ -139,6 +160,19 @@ type Point struct {
 
 func (p Point) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
+}
+
+func (p *Point) UnmarshalJSON(bts []byte) error {
+	var str string
+	if err := json.Unmarshal(bts, &str); err != nil {
+		return errors.WithStack(err)
+	}
+	decoded, err := PointFromString(str)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	*p = decoded
+	return nil
 }
 
 func (p Point) InSameBox(points ...Point) bool {

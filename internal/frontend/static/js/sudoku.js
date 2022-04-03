@@ -162,6 +162,9 @@ class Sudoku {
             this.#_object.querySelectorAll('.sud-cll').forEach((_cell) => {
                 _cell.classList.remove('error');
             });
+            this.#_object.querySelectorAll('.sud-cnd div').forEach((_cnd) => {
+                _cnd.classList.remove('error');
+            });
             if (body.win) {
                 this.#isWin = true;
                 alert('win'); // TODO
@@ -175,8 +178,13 @@ class Sudoku {
                             _cell.classList.add('error');
                         }
                     });
-                    if (body.candidates) {
-                        this.#setCandidatesFor(_cell, body.candidates[this.#stringifyPoint(row, col)]);
+                    if (body.errorsCandidates) {
+                        let candidates = body.errorsCandidates[this.#stringifyPoint(row, col)];
+                        if (candidates) {
+                            candidates.forEach((cand) => {
+                                _cell.querySelectorAll('.sud-cnd div')[cand - 1].classList.add('error');
+                            });
+                        }
                     }
                 });
             });
@@ -204,7 +212,8 @@ class Sudoku {
             _digit.textContent = digit;
             _cell.classList.add('is-dgt');
         }
-        if (!notMakeStep && oldDigit !== digit) this.#apiMakeStep();
+        let point = this.#stringifyPoint(this.#getIndex(_cell.parentElement), this.#getIndex(_cell));
+        if (!notMakeStep && oldDigit !== digit) this.#apiMakeStep(digit === '0'?'del_digit':'set_digit', point, digit);
     }
 
     #placeDigitInActive(digit, notMakeStep) {
@@ -268,12 +277,17 @@ class Sudoku {
     #toggleCandidate(_cell, digit) {
         if (this.#isWin) return;
         if (!_cell || _cell.classList.contains('hint') || !_cell.classList.contains('is-cnd')) return;
+        let point = this.#stringifyPoint(this.#getIndex(_cell.parentElement), this.#getIndex(_cell));
         _cell.querySelectorAll('.sud-cnd div').forEach((_cnd) => {
             if (digit === '0') { _cnd.classList.add('hidden'); return; }
             if (_cnd.textContent !== digit) return;
-            _cnd.classList.contains('hidden')?
-                _cnd.classList.remove('hidden'):
+            if (_cnd.classList.contains('hidden')) {
+                _cnd.classList.remove('hidden');
+                this.#apiMakeStep('set_cand', point, digit);
+            } else {
                 _cnd.classList.add('hidden');
+                this.#apiMakeStep('del_cand', point, digit);
+            }
         });
     }
 
@@ -282,18 +296,15 @@ class Sudoku {
         this.#toggleCandidate(this.#_object.querySelector('.sud-cll.active'), digit);
     }
 
-    #apiMakeStep() {
-        let state = '';
-        this.#_object.querySelectorAll('.sud-dgt').forEach((_dgt) => {
-            let val = _dgt.textContent;
-            if (val === '') val = '.';
-            state += val;
-        });
+    #apiMakeStep(type, point, digit) {
         this.#ws.send('makeStep', {
             game_id: this.#gameID,
-            state: state,
-            need_candidates: false,
-        })
+            step: {
+                type: type,
+                point: point,
+                digit: digit.charCodeAt(0)-'0'.charCodeAt(0),
+            },
+        });
     }
 
     #getIndex(_node) {

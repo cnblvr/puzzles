@@ -50,9 +50,11 @@ func (r *redisRepository) CreateRandomPuzzleGame(ctx context.Context, params app
 	}
 
 	game := &app.PuzzleGame{
-		ID:        r.generatePuzzleGameID(params.Session, puzzle),
-		SessionID: params.Session.SessionID,
-		PuzzleID:  puzzleID,
+		ID:              r.generatePuzzleGameID(params.Session, puzzle),
+		SessionID:       params.Session.SessionID,
+		PuzzleID:        puzzleID,
+		State:           puzzle.Clues,
+		StateCandidates: "{}",
 	}
 	if userID := params.Session.UserID; userID > 0 {
 		game.UserID = userID
@@ -74,6 +76,17 @@ func (r *redisRepository) GetPuzzleGame(ctx context.Context, id uuid.UUID) (*app
 	}
 
 	return puzzleGame, nil
+}
+
+func (r *redisRepository) UpdatePuzzleGame(ctx context.Context, game *app.PuzzleGame) error {
+	conn := r.connect()
+	defer conn.Close()
+
+	if err := r.setPuzzleGame(ctx, conn, game); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
 func (r *redisRepository) GetPuzzle(ctx context.Context, id int64) (*app.Puzzle, error) {

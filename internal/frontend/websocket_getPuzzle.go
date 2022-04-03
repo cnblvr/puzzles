@@ -2,8 +2,8 @@ package frontend
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/cnblvr/puzzles/app"
 	"github.com/cnblvr/puzzles/puzzle_library"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -32,7 +32,7 @@ func (r websocketGetPuzzleRequest) Validate(ctx context.Context) error {
 func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketResponse, error) {
 	srv := FromContextServiceFrontendOrNil(ctx)
 
-	puzzle, err := srv.puzzleRepository.GetPuzzleByGameID(ctx, r.GameID)
+	puzzle, game, err := srv.puzzleRepository.GetPuzzleAndGame(ctx, r.GameID)
 	if err != nil {
 		return websocketGetPuzzleResponse{}, fmt.Errorf("internal server error")
 	}
@@ -46,7 +46,11 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 		return websocketGetPuzzleResponse{}, fmt.Errorf("internal server error")
 	}
 	if r.NeedCandidates {
-		resp.Candidates = assistant.GetCandidates(ctx, puzzle.Clues)
+		game.StateCandidates = assistant.GetCandidates(ctx, puzzle.Clues)
+		resp.Candidates = json.RawMessage(game.StateCandidates)
+		if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
+			return websocketGetPuzzleResponse{}, fmt.Errorf("internal server error")
+		}
 	}
 
 	return resp, nil
@@ -54,8 +58,8 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 
 // TODO handle and test
 type websocketGetPuzzleResponse struct {
-	Puzzle     string               `json:"puzzle"`
-	Candidates app.PuzzleCandidates `json:"candidates,omitempty"`
+	Puzzle     string          `json:"puzzle"`
+	Candidates json.RawMessage `json:"candidates,omitempty"`
 }
 
 func (websocketGetPuzzleResponse) Method() string {

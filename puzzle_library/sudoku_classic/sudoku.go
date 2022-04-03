@@ -2,8 +2,11 @@ package sudoku_classic
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/cnblvr/puzzles/app"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -166,20 +169,75 @@ func getMinMaxCluesOfLevel(l app.PuzzleLevel) (int, int) {
 	}
 }
 
-func (SudokuClassic) GetCandidates(ctx context.Context, puzzle string) app.PuzzleCandidates {
+func (SudokuClassic) GetCandidates(ctx context.Context, puzzle string) string {
 	p := sudokuPuzzleFromString(puzzle)
-	out := make(map[app.Point][]int8)
-	p.findCandidates().forEach(func(point app.Point, candidates []int8) {
-		if p[point.Row][point.Col] != 0 {
-			return
-		}
-		out[point] = candidates
-	})
-	return out
+	out, err := json.Marshal(p.findCandidates())
+	if err != nil {
+		log.Error().Err(err).Msg("failed to encode candidates")
+	}
+	return string(out)
 }
 
 func (SudokuClassic) FindUserErrors(ctx context.Context, userState string) []app.Point {
 	return sudokuPuzzleFromString(userState).FindUserErrors()
+}
+
+func (SudokuClassic) FindUserCandidatesErrors(ctx context.Context, stateStr string, stateCandidatesJson string) string {
+	state := sudokuPuzzleFromString(stateStr)
+	stateCandidates := sudokuCandidates{}
+	err := json.Unmarshal([]byte(stateCandidatesJson), &stateCandidates)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to decode candidates")
+	}
+
+	listErrors := newSudokuCandidates()
+	stateCandidates.forEach(func(p1 app.Point, candidates1 []int8) {
+		if state.In(p1) > 0 {
+			return
+		}
+		for _, c := range candidates1 {
+			findErrs := func(_ app.Point, value2 int8, break2 *bool) {
+				if c == value2 {
+					listErrors[p1.Row][p1.Col][c] = struct{}{}
+					*break2 = true
+				}
+			}
+			state.forEachInRow(p1.Row, findErrs, p1.Col)
+			state.forEachInCol(p1.Col, findErrs, p1.Row)
+			state.forEachInBox(p1, findErrs, p1)
+		}
+	})
+	out, err := json.Marshal(listErrors)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to encode candidates")
+	}
+	return string(out)
+}
+
+func (SudokuClassic) MakeStep(ctx context.Context, stateStr string, stateCandidatesJson string, step app.PuzzleStep) (string, string, error) {
+	state := sudokuPuzzleFromString(stateStr)
+	stateCandidates := sudokuCandidates{}
+	if err := json.Unmarshal([]byte(stateCandidatesJson), &stateCandidates); err != nil {
+		return "", "", errors.Wrap(err, "failed to decode state candidates")
+	}
+
+	switch step.Type {
+	case app.StepSetDigit:
+		state[step.Point.Row][step.Point.Col] = step.Digit
+	case app.StepDeleteDigit:
+		state[step.Point.Row][step.Point.Col] = 0
+	case app.StepSetCandidate:
+		stateCandidates[step.Point.Row][step.Point.Col][step.Digit] = struct{}{}
+	case app.StepDeleteCandidate:
+		delete(stateCandidates[step.Point.Row][step.Point.Col], step.Digit)
+	}
+
+	newStateCandidates, err := json.Marshal(stateCandidates)
+	if err != nil {
+		return "", "", errors.Wrap(err, "failed to encode new state candidates")
+	}
+
+	return state.String(), string(newStateCandidates), nil
 }
 
 // Puzzle generation without shuffling.

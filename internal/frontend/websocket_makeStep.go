@@ -2,11 +2,12 @@ package frontend
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/cnblvr/puzzles/app"
 	"github.com/cnblvr/puzzles/puzzle_library"
 	"github.com/google/uuid"
-	"sort"
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -14,9 +15,8 @@ func init() {
 }
 
 type websocketMakeStepRequest struct {
-	GameID         uuid.UUID `json:"game_id"`
-	State          string    `json:"state"`
-	NeedCandidates bool      `json:"need_candidates,omitempty"`
+	GameID uuid.UUID      `json:"game_id"`
+	Step   app.PuzzleStep `json:"step"`
 }
 
 func (websocketMakeStepRequest) Method() string {
@@ -25,66 +25,64 @@ func (websocketMakeStepRequest) Method() string {
 
 func (r websocketMakeStepRequest) Validate(ctx context.Context) error {
 	if r.GameID == uuid.Nil {
-		return fmt.Errorf("game_id is empty")
+		return errors.Errorf("game_id is empty")
 	}
-	//if len(r.State) < 81 {
-	//	return fmt.Errorf("state format invalid")
-	//}
+	if err := r.Step.Type.Validate(); err != nil {
+		return errors.WithStack(err)
+	}
 	return nil
 }
 
 func (r websocketMakeStepRequest) Execute(ctx context.Context) (websocketResponse, error) {
 	srv := FromContextServiceFrontendOrNil(ctx)
+	resp := websocketMakeStepResponse{}
 
 	uniqueErrs := make(map[app.Point]struct{})
 
-	puzzle, err := srv.puzzleRepository.GetPuzzleByGameID(ctx, r.GameID)
+	puzzle, game, err := srv.puzzleRepository.GetPuzzleAndGame(ctx, r.GameID)
 	if err != nil {
 		return websocketMakeStepResponse{}, fmt.Errorf("internal server error")
-	}
-
-	if r.State == puzzle.Solution {
-		// WIN
-		return websocketMakeStepResponse{
-			Win: true,
-		}, nil
 	}
 
 	assistant, err := puzzle_library.GetAssistant(puzzle.Type)
 	if err != nil {
 		return websocketMakeStepResponse{}, fmt.Errorf("internal server error")
 	}
-	for _, p := range assistant.FindUserErrors(ctx, r.State) {
-		uniqueErrs[p] = struct{}{}
+
+	newState, newStateCandidates, err := assistant.MakeStep(ctx, game.State, game.StateCandidates, r.Step)
+	if err != nil {
+		return websocketMakeStepResponse{}, errors.Wrap(err, "failed to make step")
+	}
+	game.State, game.StateCandidates = newState, newStateCandidates
+
+	if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
+		return websocketMakeStepResponse{}, errors.Wrap(err, "failed to save new states")
 	}
 
-	// TODO new method "compare with answer" and use this function
-	//board := sudoku_classic.PuzzleFromString(boardStr)
-	//for _, p := range board.FindErrors(userState) {
-	//	uniqueErrs[p] = struct{}{}
-	//}
+	if newState == puzzle.Solution {
+		// WIN
+		return websocketMakeStepResponse{
+			Win: true,
+		}, nil
+	}
 
-	resp := websocketMakeStepResponse{}
+	for _, p := range assistant.FindUserErrors(ctx, newState) {
+		uniqueErrs[p] = struct{}{}
+	}
 	for p := range uniqueErrs {
 		resp.Errors = append(resp.Errors, p)
 	}
-	sort.Slice(resp.Errors, func(i, j int) bool {
-		if resp.Errors[i].Row != resp.Errors[j].Row {
-			return resp.Errors[i].Row < resp.Errors[j].Row
-		}
-		return resp.Errors[i].Col < resp.Errors[j].Col
-	})
-	if r.NeedCandidates {
-		resp.Candidates = assistant.GetCandidates(ctx, r.State)
-	}
+
+	resp.ErrorsCandidates = json.RawMessage(assistant.FindUserCandidatesErrors(ctx, newState, newStateCandidates))
+
 	return resp, nil
 }
 
 // TODO handle and test
 type websocketMakeStepResponse struct {
-	Errors     []app.Point          `json:"errors,omitempty"`
-	Win        bool                 `json:"win,omitempty"`
-	Candidates app.PuzzleCandidates `json:"candidates,omitempty"`
+	Errors           []app.Point     `json:"errors,omitempty"`
+	ErrorsCandidates json.RawMessage `json:"errorsCandidates,omitempty"`
+	Win              bool            `json:"win,omitempty"`
 }
 
 func (websocketMakeStepResponse) Method() string {

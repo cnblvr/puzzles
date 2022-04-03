@@ -56,7 +56,7 @@
 .sud-dgt {
     font-size: 36px;
 }
-.sud-cll.error .sud-dgt {
+.sud-cll.error .sud-dgt, .sud-cll .sud-cnd .error {
     color: #ff0000;
 }
 
