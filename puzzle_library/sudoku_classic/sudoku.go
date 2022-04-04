@@ -54,14 +54,14 @@ func (SudokuClassic) GenerateSolution(ctx context.Context, seed int64, generated
 
 	generatedSolutions <- app.GeneratedPuzzle{
 		Seed:     seed,
-		Meta:     []byte("{}"),
+		Meta:     "{}",
 		Solution: solution.String(),
 	}
 
 	return
 }
 
-func (SudokuClassic) GenerateClues(ctx context.Context, seed int64, generatedSolution app.GeneratedPuzzle, generated chan<- app.GeneratedPuzzle) {
+func (s SudokuClassic) GenerateClues(ctx context.Context, seed int64, generatedSolution app.GeneratedPuzzle, generated chan<- app.GeneratedPuzzle) {
 	// randomizer for clues generation
 	rnd := rand.New(rand.NewSource(seed))
 
@@ -85,12 +85,14 @@ func (SudokuClassic) GenerateClues(ctx context.Context, seed int64, generatedSol
 	removes := 0
 	saveHardIfMatched := func() {
 		if _, max := getMinMaxCluesOfLevel(app.PuzzleLevelHard); max >= removes-81 {
+			puzzleStr := puzzle.String()
 			generated <- app.GeneratedPuzzle{
-				Seed:     seed,
-				Level:    app.PuzzleLevelHard,
-				Meta:     generatedSolution.Meta,
-				Clues:    puzzle.String(),
-				Solution: solution.String(),
+				Seed:       seed,
+				Level:      app.PuzzleLevelHard,
+				Meta:       generatedSolution.Meta,
+				Clues:      puzzleStr,
+				Candidates: s.GetCandidates(ctx, puzzleStr),
+				Solution:   solution.String(),
 			}
 		}
 	}
@@ -124,12 +126,14 @@ func (SudokuClassic) GenerateClues(ctx context.Context, seed int64, generatedSol
 		}
 
 		if level, ok := needHints[81-removes]; ok {
+			puzzleStr := puzzle.String()
 			generated <- app.GeneratedPuzzle{
-				Seed:     seed,
-				Level:    level,
-				Meta:     generatedSolution.Meta,
-				Clues:    puzzle.String(),
-				Solution: solution.String(),
+				Seed:       seed,
+				Level:      level,
+				Meta:       generatedSolution.Meta,
+				Clues:      puzzleStr,
+				Candidates: s.GetCandidates(ctx, puzzleStr),
+				Solution:   solution.String(),
 			}
 		}
 	}

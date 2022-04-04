@@ -56,21 +56,23 @@ type PuzzleGenerator interface {
 }
 
 type GeneratedPuzzle struct {
-	Seed     int64
-	Level    PuzzleLevel
-	Meta     json.RawMessage
-	Clues    string
-	Solution string
+	Seed       int64
+	Level      PuzzleLevel
+	Meta       string
+	Clues      string
+	Candidates string
+	Solution   string
 }
 
 type Puzzle struct {
-	ID       int64           `json:"id" redis:"-"`
-	Type     PuzzleType      `json:"type" redis:"type"`
-	Seed     int64           `json:"seed" redis:"seed"`
-	Level    PuzzleLevel     `json:"level" redis:"level"`
-	Meta     json.RawMessage `json:"meta" redis:"meta"`
-	Clues    string          `json:"clues" redis:"clues"`
-	Solution string          `json:"solution" redis:"solution"`
+	ID         int64       `json:"id" redis:"-"`
+	Type       PuzzleType  `json:"type" redis:"type"`
+	Seed       int64       `json:"seed" redis:"seed"`
+	Level      PuzzleLevel `json:"level" redis:"level"`
+	Meta       string      `json:"meta" redis:"meta"`
+	Clues      string      `json:"clues" redis:"clues"`
+	Candidates string      `json:"candidates" redis:"candidates"`
+	Solution   string      `json:"solution" redis:"solution"`
 }
 
 type PuzzleGame struct {
@@ -78,8 +80,10 @@ type PuzzleGame struct {
 	SessionID       int64     `json:"session_id,omitempty" redis:"session_id"`
 	UserID          int64     `json:"user_id,omitempty" redis:"user_id"`
 	PuzzleID        int64     `json:"puzzle_id" redis:"puzzle_id"`
+	IsNew           bool      `json:"is_new" redis:"is_new"`
 	State           string    `json:"state" redis:"state"`
 	StateCandidates string    `json:"state_candidates" redis:"state_candidates"`
+	IsWin           bool      `json:"is_win" redis:"is_win"`
 }
 
 // Errors: ErrorPuzzleGameNotAllowed.

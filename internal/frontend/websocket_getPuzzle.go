@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/cnblvr/puzzles/app"
 	"github.com/cnblvr/puzzles/puzzle_library"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -39,18 +40,40 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 
 	resp := websocketGetPuzzleResponse{
 		Puzzle: puzzle.Clues,
+		IsNew:  game.IsNew,
+		IsWin:  game.IsWin,
+	}
+	if r.NeedCandidates {
+		resp.Candidates = json.RawMessage(puzzle.Candidates)
+	} else {
+		resp.Candidates = json.RawMessage("{}")
 	}
 
 	assistant, err := puzzle_library.GetAssistant(puzzle.Type)
 	if err != nil {
-		return websocketGetPuzzleResponse{}, fmt.Errorf("internal server error")
+		return websocketMakeStepResponse{}, fmt.Errorf("internal server error")
 	}
-	if r.NeedCandidates {
-		game.StateCandidates = assistant.GetCandidates(ctx, puzzle.Clues)
-		resp.Candidates = json.RawMessage(game.StateCandidates)
+
+	if game.IsNew {
+		resp.StateCandidates = json.RawMessage("{}")
+		game.State = puzzle.Clues
+		game.StateCandidates = puzzle.Candidates
 		if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
 			return websocketGetPuzzleResponse{}, fmt.Errorf("internal server error")
 		}
+	} else {
+		resp.StatePuzzle = game.State
+		resp.StateCandidates = json.RawMessage(game.StateCandidates)
+
+		uniqueErrs := make(map[app.Point]struct{})
+		for _, p := range assistant.FindUserErrors(ctx, resp.StatePuzzle) {
+			uniqueErrs[p] = struct{}{}
+		}
+		for p := range uniqueErrs {
+			resp.Errors = append(resp.Errors, p)
+		}
+
+		resp.ErrorsCandidates = json.RawMessage(assistant.FindUserCandidatesErrors(ctx, game.State, game.StateCandidates))
 	}
 
 	return resp, nil
@@ -60,6 +83,14 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 type websocketGetPuzzleResponse struct {
 	Puzzle     string          `json:"puzzle"`
 	Candidates json.RawMessage `json:"candidates,omitempty"`
+	IsNew      bool            `json:"is_new,omitempty"`
+	IsWin      bool            `json:"is_win,omitempty"`
+
+	// if IsNew is false
+	StatePuzzle      string          `json:"state_puzzle,omitempty"`
+	StateCandidates  json.RawMessage `json:"state_candidates,omitempty"`
+	Errors           []app.Point     `json:"errors,omitempty"`
+	ErrorsCandidates json.RawMessage `json:"errorsCandidates,omitempty"`
 }
 
 func (websocketGetPuzzleResponse) Method() string {

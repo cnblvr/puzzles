@@ -50,11 +50,10 @@ func (r *redisRepository) CreateRandomPuzzleGame(ctx context.Context, params app
 	}
 
 	game := &app.PuzzleGame{
-		ID:              r.generatePuzzleGameID(params.Session, puzzle),
-		SessionID:       params.Session.SessionID,
-		PuzzleID:        puzzleID,
-		State:           puzzle.Clues,
-		StateCandidates: "{}",
+		ID:        r.generatePuzzleGameID(params.Session, puzzle),
+		SessionID: params.Session.SessionID,
+		PuzzleID:  puzzleID,
+		IsNew:     true,
 	}
 	if userID := params.Session.UserID; userID > 0 {
 		game.UserID = userID
@@ -82,6 +81,7 @@ func (r *redisRepository) UpdatePuzzleGame(ctx context.Context, game *app.Puzzle
 	conn := r.connect()
 	defer conn.Close()
 
+	game.IsNew = false
 	if err := r.setPuzzleGame(ctx, conn, game); err != nil {
 		return errors.WithStack(err)
 	}
@@ -147,13 +147,14 @@ func (r *redisRepository) CreatePuzzle(ctx context.Context, params app.CreatePuz
 	// TODO unique app.Puzzle.Solution
 
 	puzzle := &app.Puzzle{
-		ID:       id,
-		Type:     params.Type,
-		Seed:     params.Seed,
-		Level:    params.Level,
-		Meta:     params.Meta,
-		Clues:    params.Clues,
-		Solution: params.Solution,
+		ID:         id,
+		Type:       params.Type,
+		Seed:       params.Seed,
+		Level:      params.Level,
+		Meta:       params.Meta,
+		Clues:      params.Clues,
+		Candidates: params.Candidates,
+		Solution:   params.Solution,
 	}
 
 	if err := r.setPuzzle(ctx, conn, puzzle); err != nil {

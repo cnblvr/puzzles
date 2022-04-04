@@ -142,52 +142,38 @@ class Sudoku {
 
         this.#_object.addEventListener('api_getPuzzle', (e) => {
             let body = e.detail.body;
+            let puzzle = body.is_new ? body.puzzle : body.state_puzzle;
+            let candidates = body.is_new ? body.candidates : body.state_candidates;
             this.#_object.querySelectorAll('.sud-row').forEach((_row, row) => {
                 _row.querySelectorAll('.sud-cll').forEach((_cell, col) => {
                     this.#placeDigit(_cell, '0', true);
-                    let d = body.puzzle[row*9+col];
+                    let d = puzzle[row * 9 + col];
                     if ('1' <= d && d <= '9') {
                         this.#placeDigit(_cell, d, true);
-                        _cell.classList.add('hint');
+                        if (body.puzzle[row * 9 + col] !== '.')
+                            _cell.classList.add('hint');
                     }
-                    if (body.candidates) {
-                        this.#setCandidatesFor(_cell, body.candidates[this.#stringifyPoint(row, col)]);
+                    if (candidates) {
+                        this.#setCandidatesFor(_cell, candidates[this.#stringifyPoint(row, col)]);
                     }
                 });
             });
+            if (!body.is_new) {
+                this.#deleteErrors();
+                this.#setErrors(body.errors, body.errorsCandidates);
+            }
+            if (body.is_win) this.#isWin = true;
         });
 
         this.#_object.addEventListener('api_makeStep', (e) => {
             let body = e.detail.body;
-            this.#_object.querySelectorAll('.sud-cll').forEach((_cell) => {
-                _cell.classList.remove('error');
-            });
-            this.#_object.querySelectorAll('.sud-cnd div').forEach((_cnd) => {
-                _cnd.classList.remove('error');
-            });
+            this.#deleteErrors();
             if (body.win) {
                 this.#isWin = true;
                 alert('win'); // TODO
                 return;
             }
-            body.errors = this.#parsePoints(body.errors);
-            this.#_object.querySelectorAll('.sud-row').forEach((_row, row) => {
-                _row.querySelectorAll('.sud-cll').forEach((_cell, col) => {
-                    body.errors.forEach((p) => {
-                        if (p.row === row && p.col === col) {
-                            _cell.classList.add('error');
-                        }
-                    });
-                    if (body.errorsCandidates) {
-                        let candidates = body.errorsCandidates[this.#stringifyPoint(row, col)];
-                        if (candidates) {
-                            candidates.forEach((cand) => {
-                                _cell.querySelectorAll('.sud-cnd div')[cand - 1].classList.add('error');
-                            });
-                        }
-                    }
-                });
-            });
+            this.#setErrors(body.errors, body.errorsCandidates);
         });
     }
 
@@ -294,6 +280,36 @@ class Sudoku {
     #toggleCandidateInActive(digit) {
         if (this.#isWin) return;
         this.#toggleCandidate(this.#_object.querySelector('.sud-cll.active'), digit);
+    }
+
+    #deleteErrors() {
+        this.#_object.querySelectorAll('.sud-cll').forEach((_cell) => {
+            _cell.classList.remove('error');
+        });
+        this.#_object.querySelectorAll('.sud-cnd div').forEach((_cnd) => {
+            _cnd.classList.remove('error');
+        });
+    }
+
+    #setErrors(errors, errorsCandidates) {
+        errors = this.#parsePoints(errors);
+        this.#_object.querySelectorAll('.sud-row').forEach((_row, row) => {
+            _row.querySelectorAll('.sud-cll').forEach((_cell, col) => {
+                errors.forEach((p) => {
+                    if (p.row === row && p.col === col) {
+                        _cell.classList.add('error');
+                    }
+                });
+                if (errorsCandidates) {
+                    let candidates = errorsCandidates[this.#stringifyPoint(row, col)];
+                    if (candidates) {
+                        candidates.forEach((cand) => {
+                            _cell.querySelectorAll('.sud-cnd div')[cand - 1].classList.add('error');
+                        });
+                    }
+                }
+            });
+        });
     }
 
     #apiMakeStep(type, point, digit) {

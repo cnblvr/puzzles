@@ -8,6 +8,7 @@ import (
 	"github.com/cnblvr/puzzles/puzzle_library"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 func init() {
@@ -37,8 +38,6 @@ func (r websocketMakeStepRequest) Execute(ctx context.Context) (websocketRespons
 	srv := FromContextServiceFrontendOrNil(ctx)
 	resp := websocketMakeStepResponse{}
 
-	uniqueErrs := make(map[app.Point]struct{})
-
 	puzzle, game, err := srv.puzzleRepository.GetPuzzleAndGame(ctx, r.GameID)
 	if err != nil {
 		return websocketMakeStepResponse{}, fmt.Errorf("internal server error")
@@ -55,17 +54,21 @@ func (r websocketMakeStepRequest) Execute(ctx context.Context) (websocketRespons
 	}
 	game.State, game.StateCandidates = newState, newStateCandidates
 
-	if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
-		return websocketMakeStepResponse{}, errors.Wrap(err, "failed to save new states")
-	}
+	defer func() {
+		if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
+			log.Error().Err(err).Msg("failed to update puzzle game")
+		}
+	}()
 
 	if newState == puzzle.Solution {
 		// WIN
+		game.IsWin = true
 		return websocketMakeStepResponse{
 			Win: true,
 		}, nil
 	}
 
+	uniqueErrs := make(map[app.Point]struct{})
 	for _, p := range assistant.FindUserErrors(ctx, newState) {
 		uniqueErrs[p] = struct{}{}
 	}
