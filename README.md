@@ -1,3 +1,5 @@
+![/screenshot.png](/screenshot.png)
+
 1. Create redis config and development environments
 ```shell
 rm -f redis.conf && touch redis.conf
