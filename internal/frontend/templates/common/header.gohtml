@@ -19,11 +19,11 @@
         .notification.warning { color: white; background-color: #fd6800; }
         .notification.success { color: white; background-color: #35901d; }
 
-        header { display: flex; justify-content: flex-start; align-items: center;
-            width: 100%; height: 5vh; }
+        header { display: flex; justify-content: space-between; align-items: center;
+            width: 100%; flex-wrap: wrap; }
         header, footer { background-color: #b0f0b0; }
-        nav { margin-left: 10px; }
-        .nav-item { padding: 10px 10px; }
+        nav { margin-left: 10px; line-height: 5vh; }
+        .nav-item { padding: 10px 10px; white-space: nowrap; }
 
         main { flex: 1; overflow: auto; }
 
@@ -46,8 +46,7 @@
         label.radio { border: 1px solid green; border-radius: 10px; padding: 5px 15px; color: green; cursor: pointer; }
         input[hidden=hidden]:checked + label { background-color: #56D056; color: white; }
 
-        footer { display: flex; justify-content: flex-end; align-items: center; }
-        .footer-item { margin: 5px 10px; }
+        .github { margin: 2px 10px; }
     </style>{{with .CssInternal}}
     <style>{{range $css := .}}
         {{.}}{{end}}
@@ -60,5 +59,6 @@
     <nav>{{range $nav := .Navigation}}
         <a class="nav-item" href="{{$nav.Path}}">{{$nav.Label}}</a>{{end}}
     </nav>
+    <div class="github">github <a href="https://github.com/cnblvr/puzzles">cnblvr/puzzles</a></div>
 </header>
 <main>{{end}}

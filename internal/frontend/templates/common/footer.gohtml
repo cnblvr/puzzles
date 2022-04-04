@@ -1,7 +1,4 @@
-{{define "footer"}}</main>
-<footer>
-    <div class="footer-item">github <a href="https://github.com/cnblvr/puzzles">cnblvr/puzzles</a></div>
-</footer>{{range $js := .JsExternal}}
+{{define "footer"}}</main>{{range $js := .JsExternal}}
 <script src="/js/{{$js}}.js"></script>{{end}}
 <script>
     let notification = document.querySelector('.notification');

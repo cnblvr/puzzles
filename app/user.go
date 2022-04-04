@@ -107,7 +107,7 @@ func (s *Session) ValidateWith(cookieSession *CookieSession) error {
 	return errors.WithStack(ErrorSessionInvalid)
 }
 
-const DefaultCookieSessionExpiration = time.Hour
+const DefaultCookieSessionExpiration = time.Hour * 24
 
 var (
 	ErrorSessionNotFound     = fmt.Errorf("session not found")
