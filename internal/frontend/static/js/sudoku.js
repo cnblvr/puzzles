@@ -136,7 +136,6 @@ class Sudoku {
         this.#_object.addEventListener('apiReady', () => {
             this.#ws.send('getPuzzle', {
                 game_id: this.#gameID,
-                need_candidates: true,
             });
         }, {once: true});
 

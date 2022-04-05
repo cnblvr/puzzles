@@ -1,23 +1,31 @@
-{{define "page_home"}}{{template "header" .Header}}
+{{define "page_home"}}{{template "header" .Header}}{{$uPref := .Data.UserPreferences}}
 <form action="/" method="post" autocomplete="off" class="form center">
     <ul class="list">
         <li class="keyvalue">
             <label for="puzzle_type">Choose a puzzle:</label>
-            <select name="puzzle_type" id="puzzle_type">
-                <option value="sudoku_classic">Sudoku Classic</option>
-                <option value="jigsaw" disabled="disabled">Jigsaw</option>
-                <option value="windoku" disabled="disabled">Windoku</option>
-                <option value="sudoku_x" disabled="disabled">Sudoku X</option>
-                <option value="kakuro" disabled="disabled">Kakuro</option>
+                <select name="puzzle_type" id="puzzle_type">{{range $type := dict
+                    "sudoku_classic" (kv "Sudoku Classic" false)
+                    "jigsaw" (kv "Jigsaw" true)
+                    "windoku" (kv "Windoku" true)
+                    "sudoku_x" (kv "Sudoku X" true)
+                    "kakuro" (kv "Kakuro" true)
+                }}{{$id := $type.Key}}{{$name := $type.Val.Key}}{{$disabled := $type.Val.Val}}
+                <option value="{{$id}}"{{if $disabled}} disabled="disabled"{{end}}>{{$name}}</option>{{end}}
             </select>
         </li>
-        <li class="row">
-            <input type="radio" name="puzzle_level" value="easy" id="puzzle_level_easy" hidden="hidden">
-            <label class="radio" for="puzzle_level_easy">Easy</label>
-            <input type="radio" name="puzzle_level" value="medium" id="puzzle_level_medium" hidden="hidden" checked="checked">
-            <label class="radio" for="puzzle_level_medium">Medium</label>
-            <input type="radio" name="puzzle_level" value="hard" id="puzzle_level_hard" hidden="hidden">
-            <label class="radio" for="puzzle_level_hard">Hard</label>
+        <li class="row">{{range $level := dict
+            "easy" "Easy"
+            "medium" "Medium"
+            "hard" "Hard"
+        }}{{$id := $level.Key}}{{$name := $level.Val}}{{$checked := eq $id "medium"}}{{with $uPref}}{{$checked = eq $id $uPref.PuzzleLevel}}{{end}}
+            <input type="radio" name="puzzle_level" value="{{$id}}" id="puzzle_level_{{$id}}" hidden="hidden"{{if $checked}} checked="checked"{{end}}>
+            <label class="radio" for="puzzle_level_{{$id}}">{{$name}}</label>{{end}}
+        </li>
+    </ul>
+    <ul class="list checkbox">
+        <li>
+            <input type="checkbox" id="candidates_at_start" name="candidates_at_start" value="true"{{with $uPref}}{{if $uPref.CandidatesAtStart}} checked="checked"{{end}}{{end}}>
+            <label for="candidates_at_start">candidates at the start</label>
         </li>
     </ul>
     <button type="submit">Play!</button>{{with .Data.ErrorMessage}}

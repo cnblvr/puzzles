@@ -251,6 +251,40 @@ func (r *redisRepository) GetUserActiveSessions(ctx context.Context, userID int6
 	return sessions, nil
 }
 
+func (r *redisRepository) GetUserPreferences(ctx context.Context, userID int64) (*app.UserPreferences, error) {
+	conn := r.connect()
+	defer conn.Close()
+
+	preferencesReply, err := redis.Values(conn.Do("HGETALL", r.keyUserPreferences(userID)))
+	switch err {
+	case redis.ErrNil, nil:
+	default:
+		return nil, errors.Wrap(err, "failed to get user preferences")
+	}
+
+	preferences := &app.UserPreferences{
+		PuzzleType:  app.DefaultPuzzleType,
+		PuzzleLevel: app.DefaultPuzzleLevel,
+	}
+	if err := redis.ScanStruct(preferencesReply, preferences); err != nil {
+		return nil, errors.Wrap(err, "failed to scan user preferences")
+	}
+	preferences.UserID = userID
+
+	return preferences, nil
+}
+
+func (r *redisRepository) SetUserPreferences(ctx context.Context, preferences *app.UserPreferences) error {
+	conn := r.connect()
+	defer conn.Close()
+
+	if _, err := conn.Do("HSET", redis.Args{}.Add(r.keyUserPreferences(preferences.UserID)).AddFlat(preferences)...); err != nil {
+		return errors.Wrap(err, "failed to set user preferences")
+	}
+
+	return nil
+}
+
 // keyLastSessionID returns a key of the last used ID for store app.Session.
 // Value type is int64.
 func (r *redisRepository) keyLastSessionID() string {
@@ -283,6 +317,10 @@ func (r *redisRepository) keyUserSessions(id int64) string {
 
 func (r *redisRepository) keyUserSolvedPuzzles(id int64) string {
 	return fmt.Sprintf("%s:solved_puzzles", r.keyUser(id))
+}
+
+func (r *redisRepository) keyUserPreferences(id int64) string {
+	return fmt.Sprintf("%s:preferences", r.keyUser(id))
 }
 
 // keyUsernames returns a key to check for existence of a username.

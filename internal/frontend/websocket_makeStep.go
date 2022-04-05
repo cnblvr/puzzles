@@ -52,6 +52,7 @@ func (r websocketMakeStepRequest) Execute(ctx context.Context) (websocketRespons
 	if err != nil {
 		return websocketMakeStepResponse{}, errors.Wrap(err, "failed to make step")
 	}
+	game.IsNew = false
 	game.State, game.StateCandidates = newState, newStateCandidates
 
 	defer func() {

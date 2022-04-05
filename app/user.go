@@ -59,6 +59,10 @@ type UserRepository interface {
 	//
 	// Errors: ErrorUserNotFound, unknown.
 	GetUserActiveSessions(ctx context.Context, userID int64) ([]*Session, error)
+
+	GetUserPreferences(ctx context.Context, userID int64) (*UserPreferences, error)
+
+	SetUserPreferences(ctx context.Context, preferences *UserPreferences) error
 }
 
 // User presents a user in this system.
@@ -105,6 +109,13 @@ func (s *Session) ValidateWith(cookieSession *CookieSession) error {
 		return nil
 	}
 	return errors.WithStack(ErrorSessionInvalid)
+}
+
+type UserPreferences struct {
+	UserID            int64       `json:"user_id" redis:"-"`
+	PuzzleType        PuzzleType  `json:"puzzle_type" redis:"puzzle_type"`
+	PuzzleLevel       PuzzleLevel `json:"puzzle_level" redis:"puzzle_level"`
+	CandidatesAtStart bool        `json:"candidates_at_start" redis:"candidates_at_start"`
 }
 
 const DefaultCookieSessionExpiration = time.Hour * 24

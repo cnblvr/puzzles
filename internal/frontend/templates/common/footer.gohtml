@@ -7,6 +7,9 @@
             notification.hidden = true;
         }, 3000);
     }
-</script>
+</script>{{with .JsInternal}}
+<script>{{range $js := .}}
+    {{.}}{{end}}
+</script>{{end}}
 </body>
 </html>{{end}}

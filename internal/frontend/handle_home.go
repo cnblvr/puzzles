@@ -6,16 +6,19 @@ import (
 	"github.com/cnblvr/puzzles/internal/frontend/templates"
 	"github.com/pkg/errors"
 	"net/http"
+	"strconv"
 )
 
 type PostHome struct {
-	PuzzleType app.PuzzleType
-	Level      app.PuzzleLevel
+	PuzzleType        app.PuzzleType
+	Level             app.PuzzleLevel
+	CandidatesAtStart bool
 }
 
 func (p PostHome) Parse(r *http.Request) PostHome {
 	p.PuzzleType = app.PuzzleType(r.PostFormValue("puzzle_type"))
 	p.Level = app.PuzzleLevel(r.PostFormValue("puzzle_level"))
+	p.CandidatesAtStart, _ = strconv.ParseBool(r.PostFormValue("candidates_at_start"))
 	return p
 }
 
@@ -46,6 +49,13 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 	log, session := FromContextLogger(ctx), FromContextSession(ctx)
 
 	renderData := RenderDataHome{}
+
+	var userPreferences *app.UserPreferences
+	if session.UserID > 0 {
+		userPreferences, _ = srv.userRepository.GetUserPreferences(ctx, session.UserID)
+	}
+	renderData.UserPreferences = userPreferences
+
 	if r.Method == http.MethodPost {
 		var (
 			msgInternalServerError = "Internal Server Error."
@@ -76,6 +86,21 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 				renderData.ErrorMessage = msgInternalServerError
 				return
 			}
+			game.CandidatesAtStart = post.CandidatesAtStart
+			if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
+				log.Error().Err(err).Msg("failed to update puzzle game")
+				renderData.ErrorMessage = msgInternalServerError
+				return
+			}
+
+			if userPreferences != nil {
+				userPreferences.PuzzleType = post.PuzzleType
+				userPreferences.PuzzleLevel = post.Level
+				userPreferences.CandidatesAtStart = post.CandidatesAtStart
+				if err := srv.userRepository.SetUserPreferences(ctx, userPreferences); err != nil {
+					log.Warn().Err(err).Msg("failed to set user preferences")
+				}
+			}
 
 			http.Redirect(w, r, app.EndpointGameID{}.Path(game.ID), http.StatusSeeOther)
 			return
@@ -92,5 +117,6 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 }
 
 type RenderDataHome struct {
-	ErrorMessage string
+	UserPreferences *app.UserPreferences
+	ErrorMessage    string
 }

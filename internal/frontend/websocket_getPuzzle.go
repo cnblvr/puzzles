@@ -15,8 +15,7 @@ func init() {
 }
 
 type websocketGetPuzzleRequest struct {
-	GameID         uuid.UUID `json:"game_id"`
-	NeedCandidates bool      `json:"need_candidates,omitempty"`
+	GameID uuid.UUID `json:"game_id"`
 }
 
 func (websocketGetPuzzleRequest) Method() string {
@@ -43,7 +42,7 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 		IsNew:  game.IsNew,
 		IsWin:  game.IsWin,
 	}
-	if r.NeedCandidates {
+	if game.CandidatesAtStart {
 		resp.Candidates = json.RawMessage(puzzle.Candidates)
 	} else {
 		resp.Candidates = json.RawMessage("{}")

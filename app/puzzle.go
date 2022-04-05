@@ -76,14 +76,15 @@ type Puzzle struct {
 }
 
 type PuzzleGame struct {
-	ID              uuid.UUID `json:"id" redis:"-"`
-	SessionID       int64     `json:"session_id,omitempty" redis:"session_id"`
-	UserID          int64     `json:"user_id,omitempty" redis:"user_id"`
-	PuzzleID        int64     `json:"puzzle_id" redis:"puzzle_id"`
-	IsNew           bool      `json:"is_new" redis:"is_new"`
-	State           string    `json:"state" redis:"state"`
-	StateCandidates string    `json:"state_candidates" redis:"state_candidates"`
-	IsWin           bool      `json:"is_win" redis:"is_win"`
+	ID                uuid.UUID `json:"id" redis:"-"`
+	SessionID         int64     `json:"session_id,omitempty" redis:"session_id"`
+	UserID            int64     `json:"user_id,omitempty" redis:"user_id"`
+	PuzzleID          int64     `json:"puzzle_id" redis:"puzzle_id"`
+	IsNew             bool      `json:"is_new" redis:"is_new"`
+	State             string    `json:"state" redis:"state"`
+	StateCandidates   string    `json:"state_candidates" redis:"state_candidates"`
+	IsWin             bool      `json:"is_win" redis:"is_win"`
+	CandidatesAtStart bool      `json:"candidates_at_start" redis:"candidates_at_start"`
 }
 
 // Errors: ErrorPuzzleGameNotAllowed.
@@ -140,6 +141,7 @@ const (
 	PuzzleWindoku       PuzzleType = "windoku"
 	PuzzleSudokuX       PuzzleType = "sudoku_x"
 	PuzzleKakuro        PuzzleType = "kakuro"
+	DefaultPuzzleType   PuzzleType = PuzzleSudokuClassic
 )
 
 func (t PuzzleType) String() string {
@@ -149,9 +151,10 @@ func (t PuzzleType) String() string {
 type PuzzleLevel string
 
 const (
-	PuzzleLevelEasy   PuzzleLevel = "easy"
-	PuzzleLevelMedium PuzzleLevel = "medium"
-	PuzzleLevelHard   PuzzleLevel = "hard"
+	PuzzleLevelEasy    PuzzleLevel = "easy"
+	PuzzleLevelMedium  PuzzleLevel = "medium"
+	PuzzleLevelHard    PuzzleLevel = "hard"
+	DefaultPuzzleLevel PuzzleLevel = PuzzleLevelMedium
 )
 
 func (l PuzzleLevel) String() string {

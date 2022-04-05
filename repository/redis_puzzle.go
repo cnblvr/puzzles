@@ -81,7 +81,6 @@ func (r *redisRepository) UpdatePuzzleGame(ctx context.Context, game *app.Puzzle
 	conn := r.connect()
 	defer conn.Close()
 
-	game.IsNew = false
 	if err := r.setPuzzleGame(ctx, conn, game); err != nil {
 		return errors.WithStack(err)
 	}

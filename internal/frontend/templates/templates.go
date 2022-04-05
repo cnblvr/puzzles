@@ -3,6 +3,7 @@ package templates
 import (
 	"embed"
 	"github.com/cnblvr/puzzles/app"
+	"github.com/pkg/errors"
 	"html/template"
 )
 
@@ -28,7 +29,29 @@ func Functions() template.FuncMap {
 			h.CssInternal = append(h.CssInternal, css...)
 			return h
 		},
+		"add_internal_js": func(f Footer, js ...template.JS) Footer {
+			f.JsInternal = append(f.JsInternal, js...)
+			return f
+		},
+		"dict": func(in ...interface{}) ([]keyValue, error) {
+			if len(in)%2 == 1 {
+				return nil, errors.Errorf("length list of keyvalue invalid")
+			}
+			kv := make([]keyValue, 0, len(in)/2)
+			for i := 0; i < len(in); i += 2 {
+				kv = append(kv, keyValue{Key: in[i], Val: in[i+1]})
+			}
+			return kv, nil
+		},
+		"kv": func(key interface{}, val interface{}) keyValue {
+			return keyValue{Key: key, Val: val}
+		},
 	}
+}
+
+type keyValue struct {
+	Key interface{}
+	Val interface{}
 }
 
 type Params struct {
