@@ -38,14 +38,13 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 	}
 
 	resp := websocketGetPuzzleResponse{
-		Puzzle: puzzle.Clues,
-		IsNew:  game.IsNew,
-		IsWin:  game.IsWin,
+		Puzzle:     puzzle.Clues,
+		Candidates: json.RawMessage("{}"),
+		IsNew:      game.IsNew,
+		IsWin:      game.IsWin,
 	}
 	if game.CandidatesAtStart {
 		resp.Candidates = json.RawMessage(puzzle.Candidates)
-	} else {
-		resp.Candidates = json.RawMessage("{}")
 	}
 
 	assistant, err := puzzle_library.GetAssistant(puzzle.Type)
@@ -54,9 +53,9 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 	}
 
 	if game.IsNew {
-		resp.StateCandidates = json.RawMessage("{}")
+		resp.StateCandidates = resp.Candidates
 		game.State = puzzle.Clues
-		game.StateCandidates = puzzle.Candidates
+		game.StateCandidates = string(resp.StateCandidates)
 		if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
 			return websocketGetPuzzleResponse{}, fmt.Errorf("internal server error")
 		}
