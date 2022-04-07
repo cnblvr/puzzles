@@ -42,12 +42,29 @@ type CreatePuzzleParams struct {
 }
 
 type PuzzleAssistant interface {
-	Type() PuzzleType
-	GetCandidates(ctx context.Context, clues string) string
-	FindUserErrors(ctx context.Context, userState string) []Point
-	FindUserCandidatesErrors(ctx context.Context, state string, stateCandidates string) string
-	MakeStep(ctx context.Context, state string, stateCandidates string, step PuzzleStep) (string, string, error)
+	String() string
+	Rotate(r RotationType)
+	//Type() PuzzleType
+	//GetCandidates(ctx context.Context, clues string) string
+	//FindUserErrors(ctx context.Context, userState string) []Point
+	//FindUserCandidatesErrors(ctx context.Context, state string, stateCandidates string) string
+	//MakeStep(ctx context.Context, state string, stateCandidates string, step PuzzleStep) (string, string, error)
 }
+
+type RotationType uint8
+
+const (
+	RotateTo90 = RotationType(iota + 1)
+	RotateTo180
+	RotateTo270
+)
+
+type DirectionType uint8
+
+const (
+	Horizontal = DirectionType(iota)
+	Vertical
+)
 
 type PuzzleGenerator interface {
 	Type() PuzzleType

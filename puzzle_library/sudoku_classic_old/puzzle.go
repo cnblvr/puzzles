@@ -1,4 +1,4 @@
-package sudoku_classic
+package sudoku_classic_old
 
 import (
 	"context"
