@@ -6,6 +6,15 @@ import (
 	"testing"
 )
 
+func TestDebug(t *testing.T) {
+	p, err := parse("123456789456789123789123456891234567234567891567891234678912345912345678345678912")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	t.Logf("\n%s", p.debug())
+}
+
 func TestParse(t *testing.T) {
 	tests := []struct {
 		name    string
