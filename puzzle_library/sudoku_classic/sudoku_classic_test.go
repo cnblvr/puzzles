@@ -102,6 +102,8 @@ func TestPuzzleTransformations(t *testing.T) {
 		wantP   string
 		wantErr bool
 	}{
+		// SWAP LINES
+
 		{
 			name: "swapLines a and b",
 			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
@@ -190,12 +192,89 @@ func TestPuzzleTransformations(t *testing.T) {
 			},
 			wantErr: true,
 		},
+
+		// SWAP BIG LINES
+
+		{
+			name: "swapBigLines a-c and d-f",
+			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
+			fn: func(p app.PuzzleGenerator) error {
+				return p.SwapBigLines(app.Horizontal, 0, 1)
+			},
+			wantP: "891234567234567891567891234123456789456789123789123456678912345912345678345678912",
+		},
+		{
+			name: "swapBigLines a-c and e-i",
+			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
+			fn: func(p app.PuzzleGenerator) error {
+				return p.SwapBigLines(app.Horizontal, 0, 2)
+			},
+			wantP: "678912345912345678345678912891234567234567891567891234123456789456789123789123456",
+		},
+		{
+			name: "swapBigLines e-i and a-c",
+			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
+			fn: func(p app.PuzzleGenerator) error {
+				return p.SwapBigLines(app.Horizontal, 2, 0)
+			},
+			wantP: "678912345912345678345678912891234567234567891567891234123456789456789123789123456",
+		},
+		{
+			name: "swapBigLines 1-3 and 4-6",
+			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
+			fn: func(p app.PuzzleGenerator) error {
+				return p.SwapBigLines(app.Vertical, 0, 1)
+			},
+			wantP: "456123789789456123123789456234891567567234891891567234912678345345912678678345912",
+		},
+		{
+			name: "swapBigLines 7-9 and 4-6",
+			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
+			fn: func(p app.PuzzleGenerator) error {
+				return p.SwapBigLines(app.Vertical, 2, 1)
+			},
+			wantP: "123789456456123789789456123891567234234891567567234891678345912912678345345912678",
+		},
+		{
+			name: "swapBigLines 10-12 and 4-6",
+			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
+			fn: func(p app.PuzzleGenerator) error {
+				return p.SwapBigLines(app.Vertical, 3, 1)
+			},
+			wantErr: true,
+		},
+		{
+			name: "swapBigLines unknown direction",
+			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
+			fn: func(p app.PuzzleGenerator) error {
+				return p.SwapBigLines(app.DirectionType(200), 0, 1)
+			},
+			wantErr: true,
+		},
+		{
+			name: "swapBigLines 1-3 and 10-12",
+			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
+			fn: func(p app.PuzzleGenerator) error {
+				return p.SwapBigLines(app.Vertical, 0, 3)
+			},
+			wantErr: true,
+		},
+		{
+			name: "swapBigLines a-c and a-c",
+			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
+			fn: func(p app.PuzzleGenerator) error {
+				return p.SwapBigLines(app.Horizontal, 0, 0)
+			},
+			wantErr: true,
+		},
+
+		// ROTATE
+
 		{
 			name: "rotate to 0",
 			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
 			fn: func(p app.PuzzleGenerator) error {
-				p.Rotate(app.RotationType(0))
-				return nil
+				return p.Rotate(app.RotationType(0))
 			},
 			wantP: "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
 		},
@@ -203,8 +282,7 @@ func TestPuzzleTransformations(t *testing.T) {
 			name: "rotate to 90",
 			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
 			fn: func(p app.PuzzleGenerator) error {
-				p.Rotate(app.RotateTo90)
-				return nil
+				return p.Rotate(app.RotateTo90)
 			},
 			wantP: "936714582825693471714582369693471258582369147471258936369147825258936714147825693",
 		},
@@ -212,8 +290,7 @@ func TestPuzzleTransformations(t *testing.T) {
 			name: "rotate to 180",
 			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
 			fn: func(p app.PuzzleGenerator) error {
-				p.Rotate(app.RotateTo180)
-				return nil
+				return p.Rotate(app.RotateTo180)
 			},
 			wantP: "219876543876543219543219876432198765198765432765432198654321987321987654987654321",
 		},
@@ -221,8 +298,7 @@ func TestPuzzleTransformations(t *testing.T) {
 			name: "rotate to 270",
 			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
 			fn: func(p app.PuzzleGenerator) error {
-				p.Rotate(app.RotateTo270)
-				return nil
+				return p.Rotate(app.RotateTo270)
 			},
 			wantP: "396528741417639852528741963639852174741963285852174396963285417174396528285417639",
 		},
@@ -230,9 +306,10 @@ func TestPuzzleTransformations(t *testing.T) {
 			name: "rotate to 360",
 			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
 			fn: func(p app.PuzzleGenerator) error {
-				p.Rotate(app.RotateTo180)
-				p.Rotate(app.RotateTo180)
-				return nil
+				return someErr(
+					p.Rotate(app.RotateTo180),
+					p.Rotate(app.RotateTo180),
+				)
 			},
 			wantP: "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
 		},
@@ -240,11 +317,13 @@ func TestPuzzleTransformations(t *testing.T) {
 			name: "rotate to 360",
 			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
 			fn: func(p app.PuzzleGenerator) error {
-				p.Rotate(app.RotationType(4))
-				return nil
+				return p.Rotate(app.RotationType(4))
 			},
 			wantP: "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
 		},
+
+		// REFLECT
+
 		{
 			name: "reflect horizontal",
 			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",
@@ -329,6 +408,9 @@ func TestPuzzleTransformations(t *testing.T) {
 			},
 			wantErr: true,
 		},
+
+		// SWAP DIGITS
+
 		{
 			name: "swap digits 1 and 6",
 			p:    "123456789456789123789123456891234567234567891567891234678912345912345678345678912",

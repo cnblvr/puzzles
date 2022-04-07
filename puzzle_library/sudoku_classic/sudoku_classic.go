@@ -8,7 +8,10 @@ import (
 	"math/rand"
 )
 
-const size = 9
+const (
+	size    = 9
+	sizeGrp = 3
+)
 
 type puzzle [size][size]uint8
 
@@ -34,7 +37,7 @@ func ParseGenerator(s string) (app.PuzzleGenerator, error) {
 }
 
 func (p puzzle) String() string {
-	out := make([]byte, 81)
+	out := make([]byte, size*size)
 	for i := 0; i < size*size; i++ {
 		char := p[i/size][i%size]
 		if char > 0 {
@@ -74,13 +77,13 @@ func generateWithoutShuffling(rnd *rand.Rand) (s puzzle) {
 	}
 
 	for l := 1; l < size; l++ {
-		if l%3 == 0 {
+		if l%sizeGrp == 0 {
 			copy(s[l][:size-1], s[l-1][1:size])
 			s[l][size-1] = s[l-1][0]
 			continue
 		}
-		copy(s[l][:size-3], s[l-1][3:size])
-		copy(s[l][size-3:size], s[l-1][:3])
+		copy(s[l][:size-sizeGrp], s[l-1][sizeGrp:size])
+		copy(s[l][size-sizeGrp:size], s[l-1][:sizeGrp])
 	}
 
 	return
@@ -111,51 +114,64 @@ func (p *puzzle) SwapLines(dir app.DirectionType, a, b int) error {
 	return nil
 }
 
-func (p *puzzle) Rotate(r app.RotationType) {
-	r = r % 4
+func (p *puzzle) SwapBigLines(dir app.DirectionType, a, b int) error {
+	switch dir {
+	case app.Horizontal, app.Vertical:
+	default:
+		return errors.Errorf("dir unknown")
+	}
+	if 0 > a || a > sizeGrp-1 {
+		return errors.Errorf("a is incorrect line")
+	}
+	if 0 > b || b > sizeGrp-1 {
+		return errors.Errorf("b is incorrect line")
+	}
+	if a == b {
+		return errors.Errorf("a == b")
+	}
+	for l := 0; l < sizeGrp; l++ {
+		for i := 0; i < size; i++ {
+			la, lb := a*sizeGrp+l, b*sizeGrp+l
+			if dir == app.Horizontal {
+				p[la][i], p[lb][i] = p[lb][i], p[la][i]
+			} else {
+				p[i][la], p[i][lb] = p[i][lb], p[i][la]
+			}
+		}
+	}
+	return nil
+}
 
+func (p *puzzle) Rotate(r app.RotationType) error {
+	r = r % (app.RotateTo270 + 1)
+
+	var err1, err2 error
 	switch r {
 	case app.RotateTo90:
 		// reflect along the major diagonal
-		// 1234 -> 1342
-		// 3412    2413
-		// 4123    3124
-		// 2341    4231
-		p.Reflect(app.ReflectMajorDiagonal)
+		err1 = p.Reflect(app.ReflectMajorDiagonal)
 		// reflect vertically
-		// 1342 -> 4231
-		// 2413    3124
-		// 3124    2413
-		// 4231    1342
-		p.Reflect(app.ReflectVertical)
+		err2 = p.Reflect(app.ReflectVertical)
 
 	case app.RotateTo180:
 		// reflect vertically
-		// 1234    2341
-		// 3412    4123
-		// 4123    3412
-		// 2341    1234
-		p.Reflect(app.ReflectVertical)
+		err1 = p.Reflect(app.ReflectVertical)
 		// reflect horizontally
-		// 2341    1432
-		// 4123    3214
-		// 3412    2143
-		// 1234    4321
-		p.Reflect(app.ReflectHorizontal)
+		err2 = p.Reflect(app.ReflectHorizontal)
 
 	case app.RotateTo270:
 		// reflect along the major diagonal
-		// 1234 -> 1342
-		// 3412    2413
-		// 4123    3124
-		// 2341    4231
-		p.Reflect(app.ReflectMajorDiagonal)
-		// 1342 -> 2431
-		// 2413    3142
-		// 3124    4213
-		// 4231    1324
-		p.Reflect(app.ReflectHorizontal)
+		err1 = p.Reflect(app.ReflectMajorDiagonal)
+		// reflect horizontally
+		err2 = p.Reflect(app.ReflectHorizontal)
 	}
+	if err1 != nil {
+		return err1
+	}
+	if err2 != nil {
+		return err2
+	}
+	return nil
 }
 
 func (p *puzzle) Reflect(r app.ReflectionType) error {
@@ -194,10 +210,10 @@ func (p *puzzle) Reflect(r app.ReflectionType) error {
 }
 
 func (p *puzzle) SwapDigits(a, b uint8) error {
-	if 1 > a || a > 9 {
+	if 1 > a || a > size {
 		return errors.Errorf("a is incorrect digit")
 	}
-	if 1 > b || b > 9 {
+	if 1 > b || b > size {
 		return errors.Errorf("b is incorrect digit")
 	}
 	if a == b {

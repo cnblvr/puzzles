@@ -53,7 +53,7 @@ type PuzzleAssistant interface {
 type RotationType uint8
 
 const (
-	RotateTo90 = RotationType(iota + 1)
+	RotateTo90 RotationType = iota + 1
 	RotateTo180
 	RotateTo270
 )
@@ -61,14 +61,14 @@ const (
 type DirectionType uint8
 
 const (
-	Horizontal = DirectionType(iota)
+	Horizontal DirectionType = iota
 	Vertical
 )
 
 type ReflectionType uint8
 
 const (
-	ReflectHorizontal = ReflectionType(iota + 1)
+	ReflectHorizontal ReflectionType = iota + 1
 	ReflectVertical
 	ReflectMajorDiagonal
 	ReflectMinorDiagonal
@@ -77,7 +77,8 @@ const (
 type PuzzleGenerator interface {
 	String() string
 	SwapLines(dir DirectionType, a, b int) error
-	Rotate(r RotationType)
+	SwapBigLines(dir DirectionType, a, b int) error
+	Rotate(r RotationType) error
 	Reflect(r ReflectionType) error
 	SwapDigits(a, b uint8) error
 	//Type() PuzzleType
