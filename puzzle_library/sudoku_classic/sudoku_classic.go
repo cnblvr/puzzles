@@ -12,7 +12,7 @@ const size = 9
 
 type puzzle [size][size]uint8
 
-func Parse(s string) (app.PuzzleAssistant, error) {
+func parse(s string) (*puzzle, error) {
 	if len(s) != size*size {
 		return nil, errors.Errorf("invalid puzzle length: %d", len(s))
 	}
@@ -23,6 +23,14 @@ func Parse(s string) (app.PuzzleAssistant, error) {
 		}
 	}
 	return &p, nil
+}
+
+func ParseAssistant(s string) (app.PuzzleAssistant, error) {
+	return parse(s)
+}
+
+func ParseGenerator(s string) (app.PuzzleGenerator, error) {
+	return parse(s)
 }
 
 func (p puzzle) String() string {
@@ -38,7 +46,7 @@ func (p puzzle) String() string {
 	return string(out)
 }
 
-func NewRandomSolution() (s app.PuzzleAssistant, seed int64) {
+func NewRandomSolution() (s app.PuzzleGenerator, seed int64) {
 	seedBts := make([]byte, 8)
 	if _, err := crand.Reader.Read(seedBts); err != nil {
 		panic(err)
@@ -47,7 +55,7 @@ func NewRandomSolution() (s app.PuzzleAssistant, seed int64) {
 	return NewSolutionBySeed(seed), seed
 }
 
-func NewSolutionBySeed(seed int64) app.PuzzleAssistant {
+func NewSolutionBySeed(seed int64) app.PuzzleGenerator {
 	rnd := rand.New(rand.NewSource(seed))
 
 	s := generateWithoutShuffling(rnd)
@@ -78,23 +86,48 @@ func generateWithoutShuffling(rnd *rand.Rand) (s puzzle) {
 	return
 }
 
+func (p *puzzle) SwapLines(dir app.DirectionType, a, b int) error {
+	switch dir {
+	case app.Horizontal, app.Vertical:
+	default:
+		return errors.Errorf("dir unknown")
+	}
+	if 0 > a || a > size-1 {
+		return errors.Errorf("a is incorrect line")
+	}
+	if 0 > b || b > size-1 {
+		return errors.Errorf("b is incorrect line")
+	}
+	if a == b {
+		return errors.Errorf("a == b")
+	}
+	for i := 0; i < size; i++ {
+		if dir == app.Horizontal {
+			p[a][i], p[b][i] = p[b][i], p[a][i]
+		} else {
+			p[i][a], p[i][b] = p[i][b], p[i][a]
+		}
+	}
+	return nil
+}
+
 func (p *puzzle) Rotate(r app.RotationType) {
 	r = r % 4
 
 	switch r {
 	case app.RotateTo90:
-		// reflect along the main diagonal
+		// reflect along the major diagonal
 		// 1234 -> 1342
 		// 3412    2413
 		// 4123    3124
 		// 2341    4231
-		p.reflectAlongMainDiagonal()
+		p.Reflect(app.ReflectMajorDiagonal)
 		// reflect vertically
 		// 1342 -> 4231
 		// 2413    3124
 		// 3124    2413
 		// 4231    1342
-		p.Reflect(app.Vertical)
+		p.Reflect(app.ReflectVertical)
 
 	case app.RotateTo180:
 		// reflect vertically
@@ -102,51 +135,83 @@ func (p *puzzle) Rotate(r app.RotationType) {
 		// 3412    4123
 		// 4123    3412
 		// 2341    1234
-		p.Reflect(app.Vertical)
+		p.Reflect(app.ReflectVertical)
 		// reflect horizontally
 		// 2341    1432
 		// 4123    3214
 		// 3412    2143
 		// 1234    4321
-		p.Reflect(app.Horizontal)
+		p.Reflect(app.ReflectHorizontal)
 
 	case app.RotateTo270:
-		// reflect along the main diagonal
+		// reflect along the major diagonal
 		// 1234 -> 1342
 		// 3412    2413
 		// 4123    3124
 		// 2341    4231
-		p.reflectAlongMainDiagonal()
+		p.Reflect(app.ReflectMajorDiagonal)
 		// 1342 -> 2431
 		// 2413    3142
 		// 3124    4213
 		// 4231    1324
-		p.Reflect(app.Horizontal)
+		p.Reflect(app.ReflectHorizontal)
 	}
 }
 
-func (p *puzzle) Reflect(d app.DirectionType) {
-	d = d % 2
-	switch d {
-	case app.Horizontal:
+func (p *puzzle) Reflect(r app.ReflectionType) error {
+	switch r {
+	case app.ReflectHorizontal:
 		for row := 0; row < size; row++ {
 			for i := 0; i < size/2; i++ {
 				p[row][i], p[row][size-1-i] = p[row][size-1-i], p[row][i]
 			}
 		}
-	case app.Vertical:
+
+	case app.ReflectVertical:
 		for col := 0; col < size; col++ {
 			for i := 0; i < size/2; i++ {
 				p[i][col], p[size-1-i][col] = p[size-1-i][col], p[i][col]
 			}
 		}
+
+	case app.ReflectMajorDiagonal:
+		for diag := 0; diag < size; diag++ {
+			for i := diag + 1; i < size; i++ {
+				p[diag][i], p[i][diag] = p[i][diag], p[diag][i]
+			}
+		}
+
+	case app.ReflectMinorDiagonal:
+		for diag := 0; diag < size; diag++ {
+			for i := 0; i < size-1-diag; i++ {
+				p[diag][i], p[size-1-i][size-1-diag] = p[size-1-i][size-1-diag], p[diag][i]
+			}
+		}
+	default:
+		return errors.Errorf("unknown reflection type %d", r)
 	}
+	return nil
 }
 
-func (p *puzzle) reflectAlongMainDiagonal() {
-	for diag := 0; diag < size; diag++ {
-		for i := diag + 1; i < size; i++ {
-			p[diag][i], p[i][diag] = p[i][diag], p[diag][i]
+func (p *puzzle) SwapDigits(a, b uint8) error {
+	if 1 > a || a > 9 {
+		return errors.Errorf("a is incorrect digit")
+	}
+	if 1 > b || b > 9 {
+		return errors.Errorf("b is incorrect digit")
+	}
+	if a == b {
+		return errors.Errorf("a == b")
+	}
+	for row := 0; row < size; row++ {
+		for col := 0; col < size; col++ {
+			switch p[row][col] {
+			case a:
+				p[row][col] = b
+			case b:
+				p[row][col] = a
+			}
 		}
 	}
+	return nil
 }

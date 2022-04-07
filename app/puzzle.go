@@ -43,7 +43,6 @@ type CreatePuzzleParams struct {
 
 type PuzzleAssistant interface {
 	String() string
-	Rotate(r RotationType)
 	//Type() PuzzleType
 	//GetCandidates(ctx context.Context, clues string) string
 	//FindUserErrors(ctx context.Context, userState string) []Point
@@ -66,10 +65,24 @@ const (
 	Vertical
 )
 
+type ReflectionType uint8
+
+const (
+	ReflectHorizontal = ReflectionType(iota + 1)
+	ReflectVertical
+	ReflectMajorDiagonal
+	ReflectMinorDiagonal
+)
+
 type PuzzleGenerator interface {
-	Type() PuzzleType
-	GenerateSolution(ctx context.Context, seed int64, generatedSolutions chan<- GeneratedPuzzle)
-	GenerateClues(ctx context.Context, seed int64, generatedSolution GeneratedPuzzle, generated chan<- GeneratedPuzzle)
+	String() string
+	SwapLines(dir DirectionType, a, b int) error
+	Rotate(r RotationType)
+	Reflect(r ReflectionType) error
+	SwapDigits(a, b uint8) error
+	//Type() PuzzleType
+	//GenerateSolution(ctx context.Context, seed int64, generatedSolutions chan<- GeneratedPuzzle)
+	//GenerateClues(ctx context.Context, seed int64, generatedSolution GeneratedPuzzle, generated chan<- GeneratedPuzzle)
 }
 
 type GeneratedPuzzle struct {
