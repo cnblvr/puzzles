@@ -50,6 +50,18 @@ type PuzzleAssistant interface {
 	//MakeStep(ctx context.Context, state string, stateCandidates string, step PuzzleStep) (string, string, error)
 }
 
+type PuzzleGenerator interface {
+	String() string
+	SwapLines(dir DirectionType, a, b int) error
+	SwapBigLines(dir DirectionType, a, b int) error
+	Rotate(r RotationType) error
+	Reflect(r ReflectionType) error
+	SwapDigits(a, b uint8) error
+	//Type() PuzzleType
+	//GenerateSolution(ctx context.Context, seed int64, generatedSolutions chan<- GeneratedPuzzle)
+	//GenerateClues(ctx context.Context, seed int64, generatedSolution GeneratedPuzzle, generated chan<- GeneratedPuzzle)
+}
+
 type RotationType uint8
 
 const (
@@ -73,18 +85,6 @@ const (
 	ReflectMajorDiagonal
 	ReflectMinorDiagonal
 )
-
-type PuzzleGenerator interface {
-	String() string
-	SwapLines(dir DirectionType, a, b int) error
-	SwapBigLines(dir DirectionType, a, b int) error
-	Rotate(r RotationType) error
-	Reflect(r ReflectionType) error
-	SwapDigits(a, b uint8) error
-	//Type() PuzzleType
-	//GenerateSolution(ctx context.Context, seed int64, generatedSolutions chan<- GeneratedPuzzle)
-	//GenerateClues(ctx context.Context, seed int64, generatedSolution GeneratedPuzzle, generated chan<- GeneratedPuzzle)
-}
 
 type GeneratedPuzzle struct {
 	Seed       int64
@@ -172,7 +172,7 @@ const (
 	PuzzleWindoku       PuzzleType = "windoku"
 	PuzzleSudokuX       PuzzleType = "sudoku_x"
 	PuzzleKakuro        PuzzleType = "kakuro"
-	DefaultPuzzleType   PuzzleType = PuzzleSudokuClassic
+	DefaultPuzzleType              = PuzzleSudokuClassic
 )
 
 func (t PuzzleType) String() string {
@@ -185,7 +185,7 @@ const (
 	PuzzleLevelEasy    PuzzleLevel = "easy"
 	PuzzleLevelMedium  PuzzleLevel = "medium"
 	PuzzleLevelHard    PuzzleLevel = "hard"
-	DefaultPuzzleLevel PuzzleLevel = PuzzleLevelMedium
+	DefaultPuzzleLevel             = PuzzleLevelMedium
 )
 
 func (l PuzzleLevel) String() string {

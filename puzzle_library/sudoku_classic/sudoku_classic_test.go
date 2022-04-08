@@ -1,8 +1,11 @@
 package sudoku_classic
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/cnblvr/puzzles/app"
 	"math/rand"
+	"strconv"
 	"testing"
 )
 
@@ -487,6 +490,79 @@ func TestPuzzleTransformations(t *testing.T) {
 				return
 			}
 		})
+	}
+}
+
+func TestForEach(t *testing.T) {
+	const puzzle = `123456789456789123789123456891234567234567891567891234678912345912345678345678912`
+	p, err := parse(puzzle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, want := "", puzzle
+	p.forEach(func(_ app.Point, val uint8, _ *bool) {
+		got += strconv.Itoa(int(val))
+	})
+	if got != want {
+		t.Errorf("forEach()\ngot  = %s\nwant = %s", got, want)
+	}
+
+	got, want = "", "123456789"
+	p.forEachInRow(0, func(_ app.Point, val uint8, _ *bool) {
+		got += strconv.Itoa(int(val))
+	})
+	if got != want {
+		t.Errorf("forEachInRow()\ngot  = %s\nwant = %s", got, want)
+	}
+
+	got, want = "", "1475693"
+	p.forEachInCol(0, func(_ app.Point, val uint8, _ *bool) {
+		got += strconv.Itoa(int(val))
+	}, 3, 4)
+	if got != want {
+		t.Errorf("forEachInCol()\ngot  = %s\nwant = %s", got, want)
+	}
+
+	got, want = "", "345678912"
+	p.forEachInBox(app.Point{Row: 7, Col: 7}, func(_ app.Point, val uint8, _ *bool) {
+		got += strconv.Itoa(int(val))
+	})
+	if got != want {
+		t.Errorf("forEachInBox()\ngot  = %s\nwant = %s", got, want)
+	}
+
+	got, want = "", "(2; 2)"
+	// skip the first two nines
+	p.forEach(func(point app.Point, val uint8, stop *bool) {
+		if val != 9 {
+			return
+		}
+		got += fmt.Sprintf("(%d; %d)", point.Row, point.Col)
+		*stop = true
+	}, app.Point{Row: 0, Col: 8}, app.Point{Row: 1, Col: 5})
+	if got != want {
+		t.Errorf("forEach()\ngot  = %s\nwant = %s", got, want)
+	}
+}
+
+func TestFindCandidates(t *testing.T) {
+	const (
+		puzzle = "400000938032094100095300240370609004529001673604703090957008300003900400240030709"
+		want   = `{"a2":[1,6],"a3":[1,6],"a4":[1,2,5],"a5":[1,2,5,6,7],"a6":[2,5,6,7],"b1":[7,8],"b4":[5,8],"b8":[5,6],"b9":[5,6,7],"c1":[1,7,8],"c5":[1,6,7,8],"c6":[6,7],"c9":[6,7],"d3":[1,8],"d5":[2,5,8],"d7":[5,8],"d8":[1,2,5,8],"e4":[4,8],"e5":[4,8],"f2":[1,8],"f5":[2,5,8],"f7":[5,8],"f9":[1,2,5],"g4":[1,2,4],"g5":[1,2,4,6],"g8":[1,2,6],"g9":[1,2,6],"h1":[1,8],"h2":[1,6,8],"h5":[1,2,5,6,7],"h6":[2,5,6,7],"h8":[1,2,5,6,8],"h9":[1,2,5,6],"i3":[1,6,8],"i4":[1,5],"i6":[5,6],"i8":[1,5,6,8]}`
+	)
+	p, err := parse(puzzle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates := p.findCandidates()
+	bts, err := json.Marshal(candidates)
+	if err != nil {
+		t.Errorf("puzzleCandidates.MarshalJSON() error = %v", err)
+		return
+	}
+	if string(bts) != want {
+		t.Errorf("puzzleCandidates.MarshalJSON()\ngot  = %s\nwant = %s", string(bts), want)
 	}
 }
 

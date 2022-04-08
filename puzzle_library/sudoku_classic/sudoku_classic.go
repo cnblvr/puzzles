@@ -111,16 +111,16 @@ func (p *puzzle) SwapLines(dir app.DirectionType, a, b int) error {
 	switch dir {
 	case app.Horizontal, app.Vertical:
 	default:
-		return errors.Errorf("dir unknown")
+		return errors.Errorf("dir unknown: %d", dir)
 	}
 	if 0 > a || a > size-1 {
-		return errors.Errorf("a is incorrect line")
+		return errors.Errorf("a is incorrect line: %d", a)
 	}
 	if 0 > b || b > size-1 {
-		return errors.Errorf("b is incorrect line")
+		return errors.Errorf("b is incorrect line: %d", b)
 	}
 	if a == b {
-		return errors.Errorf("a == b")
+		return errors.Errorf("a == b == %d", a)
 	}
 	for i := 0; i < size; i++ {
 		if dir == app.Horizontal {
@@ -136,16 +136,16 @@ func (p *puzzle) SwapBigLines(dir app.DirectionType, a, b int) error {
 	switch dir {
 	case app.Horizontal, app.Vertical:
 	default:
-		return errors.Errorf("dir unknown")
+		return errors.Errorf("dir unknown: %d", dir)
 	}
 	if 0 > a || a > sizeGrp-1 {
-		return errors.Errorf("a is incorrect line")
+		return errors.Errorf("a is incorrect line: %d", a)
 	}
 	if 0 > b || b > sizeGrp-1 {
-		return errors.Errorf("b is incorrect line")
+		return errors.Errorf("b is incorrect line: %d", b)
 	}
 	if a == b {
-		return errors.Errorf("a == b")
+		return errors.Errorf("a == b == %d", a)
 	}
 	for l := 0; l < sizeGrp; l++ {
 		for i := 0; i < size; i++ {
@@ -221,20 +221,20 @@ func (p *puzzle) Reflect(r app.ReflectionType) error {
 			}
 		}
 	default:
-		return errors.Errorf("unknown reflection type %d", r)
+		return errors.Errorf("reflection type unknown: %d", r)
 	}
 	return nil
 }
 
 func (p *puzzle) SwapDigits(a, b uint8) error {
 	if 1 > a || a > size {
-		return errors.Errorf("a is incorrect digit")
+		return errors.Errorf("a is incorrect digit: %d", a)
 	}
 	if 1 > b || b > size {
-		return errors.Errorf("b is incorrect digit")
+		return errors.Errorf("b is incorrect digit: %d", b)
 	}
 	if a == b {
-		return errors.Errorf("a == b")
+		return errors.Errorf("a == b == %d", a)
 	}
 	for row := 0; row < size; row++ {
 		for col := 0; col < size; col++ {
@@ -247,6 +247,81 @@ func (p *puzzle) SwapDigits(a, b uint8) error {
 		}
 	}
 	return nil
+}
+
+func (p puzzle) forEach(fn func(point app.Point, val uint8, stop *bool), excludePoints ...app.Point) {
+	excludes := make(map[app.Point]struct{})
+	for _, point := range excludePoints {
+		excludes[point] = struct{}{}
+	}
+	stop := false
+	for row := 0; row < size; row++ {
+		for col := 0; col < size; col++ {
+			if stop {
+				return
+			}
+			point := app.Point{Row: row, Col: col}
+			if _, ok := excludes[point]; ok {
+				continue
+			}
+			fn(point, p[row][col], &stop)
+		}
+	}
+}
+
+func (p puzzle) forEachInRow(row int, fn func(point app.Point, val uint8, stop *bool), excludeColumns ...int) {
+	excludes := make(map[int]struct{})
+	for _, col := range excludeColumns {
+		excludes[col] = struct{}{}
+	}
+	stop := false
+	for col := 0; col < size; col++ {
+		if stop {
+			return
+		}
+		if _, ok := excludes[col]; ok {
+			continue
+		}
+		fn(app.Point{Row: row, Col: col}, p[row][col], &stop)
+	}
+}
+
+func (p puzzle) forEachInCol(col int, fn func(point app.Point, val uint8, stop *bool), excludeRows ...int) {
+	excludes := make(map[int]struct{})
+	for _, row := range excludeRows {
+		excludes[row] = struct{}{}
+	}
+	stop := false
+	for row := 0; row < size; row++ {
+		if stop {
+			return
+		}
+		if _, ok := excludes[row]; ok {
+			continue
+		}
+		fn(app.Point{Row: row, Col: col}, p[row][col], &stop)
+	}
+}
+
+func (p puzzle) forEachInBox(point app.Point, fn func(point app.Point, val uint8, stop *bool), excludePoints ...app.Point) {
+	excludes := make(map[app.Point]struct{})
+	for _, point := range excludePoints {
+		excludes[point] = struct{}{}
+	}
+	stop := false
+	pBox := app.Point{Row: (point.Row / sizeGrp) * sizeGrp, Col: (point.Col / sizeGrp) * sizeGrp}
+	for row := pBox.Row; row < pBox.Row+sizeGrp; row++ {
+		for col := pBox.Col; col < pBox.Col+sizeGrp; col++ {
+			if stop {
+				return
+			}
+			point := app.Point{Row: row, Col: col}
+			if _, ok := excludes[point]; ok {
+				continue
+			}
+			fn(point, p[row][col], &stop)
+		}
+	}
 }
 
 // ASCII representation of the puzzle when debugging.
