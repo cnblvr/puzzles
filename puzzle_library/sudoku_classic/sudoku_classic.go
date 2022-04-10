@@ -249,6 +249,148 @@ func (p *puzzle) SwapDigits(a, b uint8) error {
 	return nil
 }
 
+type puzzleStep interface {
+	Strategy() string
+	Description() string
+}
+
+type puzzleStepSet struct {
+	strategy           string
+	point              app.Point
+	value              uint8
+	removalsCandidates []app.Point
+}
+
+func (s puzzleStepSet) Strategy() string {
+	return s.strategy
+}
+
+func (s puzzleStepSet) Description() string {
+	return fmt.Sprintf("set %d in point %s with removals in %v", s.value, s.point, s.removalsCandidates)
+}
+
+type puzzleStepNakedPair struct {
+	points             []app.Point
+	values             []uint8
+	removalsCandidates []app.Point
+}
+
+func (s puzzleStepNakedPair) Strategy() string {
+	return "Naked Pair"
+}
+
+func (s puzzleStepNakedPair) Description() string {
+	return fmt.Sprintf("has candidates %v in points %s and remove candidates in points %v", s.values, s.points, s.removalsCandidates)
+}
+
+func (p *puzzle) solve(c *puzzleCandidates, chanSteps chan<- puzzleStep) (changed bool, err error) {
+	if c == nil {
+		*c = p.findSimpleCandidates()
+	}
+	changedOnIteration := true
+	makeSteps := func(steps ...puzzleStep) {
+		for _, step := range steps {
+			switch step := step.(type) {
+			case puzzleStepSet:
+				p[step.point.Row][step.point.Col] = step.value
+				step.removalsCandidates = c.simpleRemoveAfterSet(step.point, step.value)
+			}
+			changed, changedOnIteration = true, true
+			if chanSteps != nil {
+				chanSteps <- step
+			}
+		}
+	}
+	if chanSteps != nil {
+		defer close(chanSteps)
+	}
+	for changedOnIteration {
+		changedOnIteration = false
+
+		// strategy Naked Single
+		var steps []puzzleStep
+		p.forEach(func(point1 app.Point, val1 uint8, stop1 *bool) {
+			if val1 > 0 {
+				return
+			}
+			switch count := len(c[point1.Row][point1.Col]); {
+			case count > 1:
+				return
+			case count == 0:
+				err = errors.Errorf("candidates in %s is emtpy", point1.String())
+				*stop1 = true
+				return
+			}
+			steps = append(steps, puzzleStepSet{
+				strategy: "Naked Single",
+				point:    point1,
+				value:    c.in(point1)[0],
+			})
+		})
+		if err != nil {
+			return
+		}
+		if len(steps) > 0 {
+			makeSteps(steps...)
+			continue
+		}
+
+		// strategy Hidden Single
+		steps = []puzzleStep{}
+		p.forEach(func(point1 app.Point, val1 uint8, stop1 *bool) {
+			if val1 > 0 {
+				return
+			}
+			for _, candidate := range c.in(point1) {
+				isHiddenSingle := uint8(0b111)
+				c.forEachInRow(point1.Row, func(_ app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
+					if _, ok := candidates2[candidate]; ok {
+						isHiddenSingle &= 0b011
+						*stop2 = true
+					}
+				}, point1.Col)
+				c.forEachInCol(point1.Col, func(_ app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
+					if _, ok := candidates2[candidate]; ok {
+						isHiddenSingle &= 0b101
+						*stop2 = true
+					}
+				}, point1.Row)
+				c.forEachInBox(point1, func(_ app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
+					if _, ok := candidates2[candidate]; ok {
+						isHiddenSingle &= 0b110
+						*stop2 = true
+					}
+				}, point1)
+				if isHiddenSingle == 0 {
+					continue
+				}
+				steps = append(steps, puzzleStepSet{
+					strategy: "Hidden Single",
+					point:    point1,
+					value:    candidate,
+				})
+				break
+			}
+		})
+		if len(steps) > 0 {
+			makeSteps(steps...)
+			continue
+		}
+
+		// strategy Naked Pairs
+		pointsPair, pair, removals, ok := c.strategyNakedPair()
+		if ok {
+			makeSteps(puzzleStepNakedPair{
+				points:             pointsPair,
+				values:             pair,
+				removalsCandidates: removals,
+			})
+			continue
+		}
+	}
+	return
+}
+
 func (p puzzle) forEach(fn func(point app.Point, val uint8, stop *bool), excludePoints ...app.Point) {
 	excludes := make(map[app.Point]struct{})
 	for _, point := range excludePoints {

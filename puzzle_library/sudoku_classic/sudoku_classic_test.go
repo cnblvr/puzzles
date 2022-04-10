@@ -16,8 +16,8 @@ func TestDebug(t *testing.T) {
 		return
 	}
 	t.Logf("debug clues\n%s", p.debug())
-	t.Logf("debug candidates\n%s", p.findCandidates().debug(nil))
-	t.Logf("debug candidates and clues\n%s", p.findCandidates().debug(p))
+	t.Logf("debug candidates\n%s", p.findSimpleCandidates().debug(nil))
+	t.Logf("debug candidates and clues\n%s", p.findSimpleCandidates().debug(p))
 }
 
 func TestParse(t *testing.T) {
@@ -548,7 +548,7 @@ func TestForEach(t *testing.T) {
 	}
 }
 
-func TestFindCandidates(t *testing.T) {
+func TestFindSimpleCandidates(t *testing.T) {
 	const (
 		puzzle = "400000938032094100095300240370609004529001673604703090957008300003900400240030709"
 		want   = `{"a2":[1,6],"a3":[1,6],"a4":[1,2,5],"a5":[1,2,5,6,7],"a6":[2,5,6,7],"b1":[7,8],"b4":[5,8],"b8":[5,6],"b9":[5,6,7],"c1":[1,7,8],"c5":[1,6,7,8],"c6":[6,7],"c9":[6,7],"d3":[1,8],"d5":[2,5,8],"d7":[5,8],"d8":[1,2,5,8],"e4":[4,8],"e5":[4,8],"f2":[1,8],"f5":[2,5,8],"f7":[5,8],"f9":[1,2,5],"g4":[1,2,4],"g5":[1,2,4,6],"g8":[1,2,6],"g9":[1,2,6],"h1":[1,8],"h2":[1,6,8],"h5":[1,2,5,6,7],"h6":[2,5,6,7],"h8":[1,2,5,6,8],"h9":[1,2,5,6],"i3":[1,6,8],"i4":[1,5],"i6":[5,6],"i8":[1,5,6,8]}`
@@ -557,7 +557,7 @@ func TestFindCandidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	candidates := p.findCandidates()
+	candidates := p.findSimpleCandidates()
 	bts, err := json.Marshal(candidates)
 	if err != nil {
 		t.Errorf("puzzleCandidates.MarshalJSON() error = %v", err)
@@ -568,21 +568,95 @@ func TestFindCandidates(t *testing.T) {
 	}
 }
 
-func TestSimplifyCandidates(t *testing.T) {
+func TestSolveSimpleSteps(t *testing.T) {
 	tests := []struct {
-		p string
-		c string
+		name  string
+		p     string
+		wantP string
 	}{
-		{},
+		{
+			// Naked Single
+			name:  "Example Easiest Sudoku",
+			p:     "...1.5...14....67..8...24...63.7..1.9.......3.1..9.52...72...8..26....35...4.9...",
+			wantP: "672145398145983672389762451263574819958621743714398526597236184426817935831459267",
+		},
+		{
+			// Hidden Single + Naked Single
+			name:  "Example Gentle",
+			p:     ".....4.284.6.....51...3.6.....3.1....87...14....7.9.....2.1...39.....5.767.4.....",
+			wantP: "735164928426978315198532674249381756387256149561749832852617493914823567673495281",
+		},
+		/*{
+			// Hidden Pair + Naked Triple + Hidden Single + Naked Single
+			name:  "Example Moderate",
+			p:     "72..96..3...2.5....8...4.2........6.1.65.38.7.4........3.8...9....7.2...2..43..18",
+			wantP: "725196483463285971981374526372948165196523847548617239634851792819762354257439618",
+		},*/
+		/*{
+			// Y-Wing + X-Wing + Naked Triple + Naked Pair + Hidden Single + Naked Single
+			name:  "Example Tough",
+			p:     "3.9...4..2..7.9....87......75..6.23.6..9.4..8.28.5..41......59....1.6..7..6...1.4",
+			wantP: "369218475215749863487635912754861239631924758928357641173482596542196387896573124",
+		},*/
+		/*{
+			// XY-Chain + X-Cycles + XYZ Wing + Simple Colouring + Y-Wing + X-Wing + Pointing Pair + Hidden Triple +
+			//  Hidden Pair + Naked Triple + Naked Pair + Hidden Single + Naked Single
+			name:  "Example Diabolical",
+			p:     "...7.4..5.2..1..7.....8...2.9...625.6...7...8.532...1.4...9.....3..6..9.2..4.7...",
+			wantP: "981724365324615879765983142197836254642571938853249716476398521538162497219457683",
+		},*/
+		{
+			// Hidden Single + Naked Single
+			name:  "Example Easy 17 Clue",
+			p:     "....41....6....2...........32.6.........5..417...........2..3...48......5.1......",
+			wantP: "872941563169573284453826197324617859986352741715498632697284315248135976531769428",
+		},
+		/*{
+			// Naked Triple + Naked Pair + Hidden Single + Naked Single
+			name:  "Example Naked Triples",
+			p:     "...........19..5..56.31..9.1..6...28..4...7..27...4..3.4..68.35..2..59...........",
+			wantP: "928547316431986572567312894195673428384251769276894153749168235612435987853729641",
+		},*/
+		{
+			// Naked Pair + Hidden Single
+			name:  "Strategy Lesson Naked Pair",
+			p:     "4.....938.32.941...953..24.37.6.9..4529..16736.47.3.9.957..83....39..4..24..3.7.9",
+			wantP: "461572938732894156895316247378629514529481673614753892957248361183967425246135789",
+		},
+		{
+			// Naked Pair + Hidden Single
+			name:  "Strategy Lesson Naked Pair",
+			p:     ".8..9..3..3.....699.2.63158.2.8.459.8519.7.463946.587.563.4.9872......15.1..5..2.",
+			wantP: "486591732135278469972463158627814593851937246394625871563142987249786315718359624",
+		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.p[:10], func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			p, err := parse(tt.p)
 			if err != nil {
 				t.Fatal(err)
 			}
-			c := p.findCandidates()
-			_ = c
+			c := p.findSimpleCandidates()
+			chanSteps := make(chan puzzleStep)
+			go func() {
+				changed, err := p.solve(&c, chanSteps)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				if !changed {
+					t.Errorf("solve() is not helped")
+					return
+				}
+			}()
+			for step := range chanSteps {
+				t.Logf("step %s: %s", step.Strategy(), step.Description())
+			}
+			if got := p.String(); got != tt.wantP {
+				t.Errorf("solve()\ngot  = %s\nwant = %s", got, tt.wantP)
+				t.Logf("got:\n%s", c.debug(p))
+				return
+			}
 		})
 	}
 }
