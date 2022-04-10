@@ -269,18 +269,22 @@ func (s puzzleStepSet) Description() string {
 	return fmt.Sprintf("set %d in point %s with removals in %v", s.value, s.point, s.removalsCandidates)
 }
 
-type puzzleStepNakedPair struct {
+type puzzleStepNakedPairOrTriple struct {
 	points             []app.Point
-	values             []uint8
+	set                []uint8
 	removalsCandidates []app.Point
 }
 
-func (s puzzleStepNakedPair) Strategy() string {
-	return "Naked Pair"
+func (s puzzleStepNakedPairOrTriple) Strategy() string {
+	if len(s.points) == 2 {
+		return "Naked Pair"
+	} else {
+		return "Naked Triple"
+	}
 }
 
-func (s puzzleStepNakedPair) Description() string {
-	return fmt.Sprintf("has candidates %v in points %s and remove candidates in points %v", s.values, s.points, s.removalsCandidates)
+func (s puzzleStepNakedPairOrTriple) Description() string {
+	return fmt.Sprintf("has candidates %v in points %s and remove candidates in points %v", s.set, s.points, s.removalsCandidates)
 }
 
 func (p *puzzle) solve(c *puzzleCandidates, chanSteps chan<- puzzleStep) (changed bool, err error) {
@@ -377,12 +381,20 @@ func (p *puzzle) solve(c *puzzleCandidates, chanSteps chan<- puzzleStep) (change
 			continue
 		}
 
-		// strategy Naked Pairs
-		pointsPair, pair, removals, ok := c.strategyNakedPair()
-		if ok {
-			makeSteps(puzzleStepNakedPair{
-				points:             pointsPair,
-				values:             pair,
+		// strategy Naked Pair
+		if points, pair, removals, ok := c.strategyNakedPair(); ok {
+			makeSteps(puzzleStepNakedPairOrTriple{
+				points:             points,
+				set:                pair,
+				removalsCandidates: removals,
+			})
+			continue
+		}
+		// strategy Naked Triple
+		if points, triple, removals, ok := c.strategyNakedTriple(); ok {
+			makeSteps(puzzleStepNakedPairOrTriple{
+				points:             points,
+				set:                triple,
 				removalsCandidates: removals,
 			})
 			continue

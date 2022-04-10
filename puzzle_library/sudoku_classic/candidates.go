@@ -164,6 +164,145 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 	return
 }
 
+func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []uint8, removals []app.Point, changed bool) {
+	unique := func(prev map[uint8]struct{}, set []uint8) map[uint8]struct{} {
+		u := make(map[uint8]struct{})
+		if prev != nil {
+			for v := range prev {
+				u[v] = struct{}{}
+			}
+		}
+		for _, v := range set {
+			u[v] = struct{}{}
+		}
+		return u
+	}
+	uniqueToSet := func(u map[uint8]struct{}) (set []uint8) {
+		for v := range u {
+			set = append(set, v)
+		}
+		sort.Slice(set, func(i, j int) bool {
+			return set[i] < set[j]
+		})
+		return
+	}
+	c.forEach(func(point1 app.Point, candidates1 map[uint8]struct{}, stop1 *bool) {
+		if l := len(candidates1); l < 2 || 3 < l {
+			return
+		}
+		uniqueA := unique(nil, c.in(point1))
+
+		// watch row
+		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
+			if l := len(candidates2); l < 2 || 3 < l {
+				return
+			}
+			uniqueB := unique(uniqueA, c.in(point2))
+			if len(uniqueB) > 3 {
+				return
+			}
+			c.forEachInRow(point1.Row, func(point3 app.Point, candidates3 map[uint8]struct{}, stop3 *bool) {
+				if l := len(candidates3); l < 2 || 3 < l {
+					return
+				}
+				uniqueC := unique(uniqueB, c.in(point3))
+				if len(uniqueC) > 3 {
+					return
+				}
+				// triple found
+				c.forEachInRow(point1.Row, func(point4 app.Point, candidates4 map[uint8]struct{}, stop4 *bool) {
+					r := c.removeFrom(point4, uniqueToSet(uniqueC))
+					if len(r) > 0 {
+						removals = append(removals, r...)
+						changed = true
+					}
+				}, point1.Col, point2.Col, point3.Col)
+				if changed {
+					points = append(points, point1, point2, point3)
+					triple = uniqueToSet(uniqueC)
+					*stop1, *stop2, *stop3 = true, true, true
+				}
+			}, point1.Col, point2.Col)
+		}, point1.Col)
+		if changed {
+			return
+		}
+
+		// watch column
+		c.forEachInCol(point1.Col, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
+			if l := len(candidates2); l < 2 || 3 < l {
+				return
+			}
+			uniqueB := unique(uniqueA, c.in(point2))
+			if len(uniqueB) > 3 {
+				return
+			}
+			c.forEachInCol(point1.Col, func(point3 app.Point, candidates3 map[uint8]struct{}, stop3 *bool) {
+				if l := len(candidates3); l < 2 || 3 < l {
+					return
+				}
+				uniqueC := unique(uniqueB, c.in(point3))
+				if len(uniqueC) > 3 {
+					return
+				}
+				// triple found
+				c.forEachInCol(point1.Col, func(point4 app.Point, candidates4 map[uint8]struct{}, stop4 *bool) {
+					r := c.removeFrom(point4, uniqueToSet(uniqueC))
+					if len(r) > 0 {
+						removals = append(removals, r...)
+						changed = true
+					}
+				}, point1.Row, point2.Row, point3.Row)
+				if changed {
+					points = append(points, point1, point2, point3)
+					triple = uniqueToSet(uniqueC)
+					*stop1, *stop2, *stop3 = true, true, true
+				}
+			}, point1.Row, point2.Row)
+		}, point1.Row)
+		if changed {
+			return
+		}
+
+		// watch box
+		c.forEachInBox(point1, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
+			if l := len(candidates2); l < 2 || 3 < l {
+				return
+			}
+			uniqueB := unique(uniqueA, c.in(point2))
+			if len(uniqueB) > 3 {
+				return
+			}
+			c.forEachInBox(point1, func(point3 app.Point, candidates3 map[uint8]struct{}, stop3 *bool) {
+				if l := len(candidates3); l < 2 || 3 < l {
+					return
+				}
+				uniqueC := unique(uniqueB, c.in(point3))
+				if len(uniqueC) > 3 {
+					return
+				}
+				// triple found
+				c.forEachInBox(point1, func(point4 app.Point, candidates4 map[uint8]struct{}, stop4 *bool) {
+					r := c.removeFrom(point4, uniqueToSet(uniqueC))
+					if len(r) > 0 {
+						removals = append(removals, r...)
+						changed = true
+					}
+				}, point1, point2, point3)
+				if changed {
+					points = append(points, point1, point2, point3)
+					triple = uniqueToSet(uniqueC)
+					*stop1, *stop2, *stop3 = true, true, true
+				}
+			}, point1, point2)
+		}, point1)
+		if changed {
+			return
+		}
+	})
+	return
+}
+
 func (c puzzleCandidates) String() string {
 	s, _ := c.MarshalJSON()
 	return string(s)
