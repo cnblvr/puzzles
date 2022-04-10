@@ -327,27 +327,27 @@ func (p puzzle) forEachInBox(point app.Point, fn func(point app.Point, val uint8
 // ASCII representation of the puzzle when debugging.
 func (p puzzle) debug() string {
 	var out strings.Builder
-	out.WriteString("╔═══════╤═══════╤═══════╗\n")
-	for i := 0; i < size; i++ {
+	out.WriteString("╔═══════╤═══════╤═══════╗  \n")
+	for row := 0; row < size; row++ {
 		out.WriteString("║ ")
-		for j := 0; j < size; j++ {
-			if val := int(p[i][j]); val == 0 {
+		for col := 0; col < size; col++ {
+			if clue := int(p[row][col]); clue == 0 {
 				out.WriteByte(' ')
 			} else {
-				out.WriteString(strconv.Itoa(val))
+				out.WriteString(strconv.Itoa(clue))
 			}
-			if j%sizeGrp == sizeGrp-1 && j != size-1 {
+			if col%sizeGrp == sizeGrp-1 && col != size-1 {
 				out.WriteString(" │ ")
 			} else {
 				out.WriteByte(' ')
 			}
 		}
-		out.WriteString(fmt.Sprintf("║ %s\n", string('a'+byte(i))))
-		if i%sizeGrp == sizeGrp-1 && i != size-1 {
-			out.WriteString("╟───────┼───────┼───────╢\n")
+		out.WriteString(fmt.Sprintf("║ %s\n", string('a'+byte(row))))
+		if row%sizeGrp == sizeGrp-1 && row != size-1 {
+			out.WriteString("╟───────┼───────┼───────╢  \n")
 		}
 	}
-	out.WriteString("╚═══════╧═══════╧═══════╝\n")
-	out.WriteString("  1 2 3   4 5 6   7 8 9  ")
+	out.WriteString("╚═══════╧═══════╧═══════╝  \n")
+	out.WriteString("  1 2 3   4 5 6   7 8 9    ")
 	return out.String()
 }

@@ -2,8 +2,10 @@ package sudoku_classic
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/cnblvr/puzzles/app"
 	"github.com/pkg/errors"
+	"strings"
 )
 
 type puzzleCandidates [size][size]map[uint8]struct{}
@@ -157,4 +159,62 @@ func (c puzzleCandidates) forEachInBox(point app.Point, fn func(point app.Point,
 			fn(point, c[row][col], &stop)
 		}
 	}
+}
+
+func (c puzzleCandidates) debug(state *puzzle) string {
+	is := func(candidates map[uint8]struct{}, d uint8) bool {
+		_, ok := candidates[d]
+		return ok
+	}
+	var out strings.Builder
+	out.WriteString("╔═══════╤═══════╤═══════╦═══════╤═══════╤═══════╦═══════╤═══════╤═══════╗  \n")
+	for row := 0; row < size; row++ {
+		for d := uint8(1); d <= size; d += sizeGrp {
+			out.WriteString("║ ")
+			for col := 0; col < size; col++ {
+				cell := c[row][col]
+				if state != nil && state[row][col] > 0 {
+					clue := state[row][col]
+					switch {
+					case d == 1:
+						out.WriteString("      ")
+					case d == 4:
+						out.WriteString(fmt.Sprintf(" (%s)  ", string(clue+'0')))
+					case d == 7:
+						out.WriteString("      ")
+					}
+				} else {
+					for i := uint8(0); i < sizeGrp; i++ {
+						if digit := d + i; is(cell, digit) {
+							out.WriteString(fmt.Sprintf("%d ", digit))
+						} else {
+							out.WriteString("  ")
+						}
+					}
+				}
+				if col%sizeGrp == sizeGrp-1 {
+					if col != size-1 {
+						out.WriteString("║ ")
+					}
+				} else {
+					out.WriteString("│ ")
+				}
+			}
+			if d == 4 {
+				out.WriteString(fmt.Sprintf("║ %s\n", string(byte(row)+'a')))
+			} else {
+				out.WriteString("║  \n")
+			}
+		}
+		if row%sizeGrp == sizeGrp-1 {
+			if row != size-1 {
+				out.WriteString("╠═══════╪═══════╪═══════╬═══════╪═══════╪═══════╬═══════╪═══════╪═══════╣  \n")
+			}
+		} else {
+			out.WriteString("╟───────┼───────┼───────╫───────┼───────┼───────╫───────┼───────┼───────╢  \n")
+		}
+	}
+	out.WriteString("╚═══════╧═══════╧═══════╩═══════╧═══════╧═══════╩═══════╧═══════╧═══════╝  \n")
+	out.WriteString("    1       2       3       4       5       6       7       8       9      \n")
+	return out.String()
 }

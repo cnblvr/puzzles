@@ -10,12 +10,14 @@ import (
 )
 
 func TestDebug(t *testing.T) {
-	p, err := parse("123456789456789123789123456891234567234567891567891234678912345912345678345678912")
+	p, err := parse("....41....6....2...........32.6.........5..417...........2..3...48......5.1......")
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	t.Logf("\n%s", p.debug())
+	t.Logf("debug clues\n%s", p.debug())
+	t.Logf("debug candidates\n%s", p.findCandidates().debug(nil))
+	t.Logf("debug candidates and clues\n%s", p.findCandidates().debug(p))
 }
 
 func TestParse(t *testing.T) {
@@ -563,6 +565,25 @@ func TestFindCandidates(t *testing.T) {
 	}
 	if string(bts) != want {
 		t.Errorf("puzzleCandidates.MarshalJSON()\ngot  = %s\nwant = %s", string(bts), want)
+	}
+}
+
+func TestSimplifyCandidates(t *testing.T) {
+	tests := []struct {
+		p string
+		c string
+	}{
+		{},
+	}
+	for _, tt := range tests {
+		t.Run(tt.p[:10], func(t *testing.T) {
+			p, err := parse(tt.p)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c := p.findCandidates()
+			_ = c
+		})
 	}
 }
 
