@@ -95,7 +95,7 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 			if !bytes.Equal(pairA, c.in(point2)) {
 				return
 			}
-			c.forEachInRow(point1.Row, func(point3 app.Point, candidates3 map[uint8]struct{}, stop3 *bool) {
+			c.forEachInRow(point1.Row, func(point3 app.Point, _ map[uint8]struct{}, _ *bool) {
 				r := c.removeFrom(point3, pairA)
 				if len(r) > 0 {
 					removals = append(removals, r...)
@@ -105,8 +105,7 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 			if changed {
 				pairPoints = append(pairPoints, point1, point2)
 				pair = pairA
-				*stop1 = true
-				*stop2 = true
+				*stop1, *stop2 = true, true
 			}
 		}, point1.Col)
 		if changed {
@@ -119,7 +118,7 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 			if !bytes.Equal(pairA, c.in(point2)) {
 				return
 			}
-			c.forEachInCol(point1.Col, func(point3 app.Point, candidates3 map[uint8]struct{}, stop3 *bool) {
+			c.forEachInCol(point1.Col, func(point3 app.Point, _ map[uint8]struct{}, _ *bool) {
 				r := c.removeFrom(point3, pairA)
 				if len(r) > 0 {
 					removals = append(removals, r...)
@@ -129,8 +128,7 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 			if changed {
 				pairPoints = append(pairPoints, point1, point2)
 				pair = pairA
-				*stop1 = true
-				*stop2 = true
+				*stop1, *stop2 = true, true
 			}
 		}, point1.Row)
 		if changed {
@@ -143,7 +141,7 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 			if !bytes.Equal(pairA, c.in(point2)) {
 				return
 			}
-			c.forEachInBox(point1, func(point3 app.Point, candidates3 map[uint8]struct{}, stop3 *bool) {
+			c.forEachInBox(point1, func(point3 app.Point, _ map[uint8]struct{}, _ *bool) {
 				r := c.removeFrom(point3, pairA)
 				if len(r) > 0 {
 					removals = append(removals, r...)
@@ -153,8 +151,7 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 			if changed {
 				pairPoints = append(pairPoints, point1, point2)
 				pair = pairA
-				*stop1 = true
-				*stop2 = true
+				*stop1, *stop2 = true, true
 			}
 		}, point1)
 		if changed {
@@ -210,7 +207,7 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 					return
 				}
 				// triple found
-				c.forEachInRow(point1.Row, func(point4 app.Point, candidates4 map[uint8]struct{}, stop4 *bool) {
+				c.forEachInRow(point1.Row, func(point4 app.Point, _ map[uint8]struct{}, _ *bool) {
 					r := c.removeFrom(point4, uniqueToSet(uniqueC))
 					if len(r) > 0 {
 						removals = append(removals, r...)
@@ -246,7 +243,7 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 					return
 				}
 				// triple found
-				c.forEachInCol(point1.Col, func(point4 app.Point, candidates4 map[uint8]struct{}, stop4 *bool) {
+				c.forEachInCol(point1.Col, func(point4 app.Point, _ map[uint8]struct{}, _ *bool) {
 					r := c.removeFrom(point4, uniqueToSet(uniqueC))
 					if len(r) > 0 {
 						removals = append(removals, r...)
@@ -282,7 +279,7 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 					return
 				}
 				// triple found
-				c.forEachInBox(point1, func(point4 app.Point, candidates4 map[uint8]struct{}, stop4 *bool) {
+				c.forEachInBox(point1, func(point4 app.Point, _ map[uint8]struct{}, _ *bool) {
 					r := c.removeFrom(point4, uniqueToSet(uniqueC))
 					if len(r) > 0 {
 						removals = append(removals, r...)
@@ -301,6 +298,16 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 		}
 	})
 	return
+}
+
+func (c puzzleCandidates) strategyHiddenPair() (points []app.Point, pair []uint8, changed bool) {
+	c.forEach(func(point1 app.Point, candidates1 map[uint8]struct{}, stop1 *bool) {
+
+		// watch row
+		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
+			// TODO
+		}, point1.Col)
+	})
 }
 
 func (c puzzleCandidates) String() string {
