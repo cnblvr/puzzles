@@ -455,6 +455,16 @@ func (c puzzleCandidates) strategyHiddenTriple() (points []app.Point, triple []u
 	return
 }
 
+// strategy Pair or Triple Box/Line Reduction
+func (c puzzleCandidates) strategyPairTripleBLR() (points []app.Point, value uint8, removals []app.Point, changed bool) {
+	c.forEachBox(func(pointBox1 app.Point, _ *bool) {
+		for digit := uint8(1); digit <= size; digit++ {
+			// TODO
+		}
+	})
+	return
+}
+
 func (c puzzleCandidates) in(point app.Point) []uint8 {
 	return c[point.Row][point.Col].slice()
 }
@@ -509,6 +519,27 @@ func (c puzzleCandidates) forEach(fn func(point app.Point, candidates cellCandid
 				continue
 			}
 			fn(point, c[row][col], &stop)
+		}
+	}
+}
+
+func (c puzzleCandidates) forEachBox(fn func(pointBox app.Point, stop *bool), excludeBoxes ...app.Point) {
+	excludes := make(map[app.Point]struct{})
+	for _, pointGiven := range excludeBoxes {
+		pointBox := app.Point{Row: (pointGiven.Row / sizeGrp) * sizeGrp, Col: (pointGiven.Col / sizeGrp) * sizeGrp}
+		excludes[pointBox] = struct{}{}
+	}
+	stop := false
+	for row := 0; row < size; row += sizeGrp {
+		for col := 0; col < size; col += sizeGrp {
+			if stop {
+				return
+			}
+			point := app.Point{Row: row, Col: col}
+			if _, ok := excludes[point]; ok {
+				continue
+			}
+			fn(point, &stop)
 		}
 	}
 }
