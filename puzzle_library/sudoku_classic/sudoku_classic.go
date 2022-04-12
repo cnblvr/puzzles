@@ -428,6 +428,14 @@ func (p *puzzle) solve(c *puzzleCandidates, chanSteps chan<- puzzleStep) (change
 			})
 			continue
 		}
+		// strategy Hidden Triple
+		if points, triple, ok := c.strategyHiddenTriple(); ok {
+			makeSteps(puzzleStepHiddenPairOrTriple{
+				points: points,
+				set:    triple,
+			})
+			continue
+		}
 	}
 	return
 }

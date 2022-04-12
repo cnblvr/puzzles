@@ -346,33 +346,113 @@ func (c puzzleCandidates) strategyHiddenTriple() (points []app.Point, triple []u
 
 		// watch row
 		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
-			intersection2 := candidates1.intersection(candidates2)
-			c.forEachInRow(point1.Row, func(point3 app.Point, candidates3 cellCandidates, stop3 *bool) {
-				intersection3 := intersection2.intersection(candidates3)
-				if intersection3.len() < 2 {
-					return
-				}
-			}, point1.Col, point2.Col)
-			/*complement := intersection2.clone()
-			c.forEachInRow(point1.Row, func(_ app.Point, candidates3 cellCandidates, _ *bool) {
-				complement = complement.complement(candidates3)
-			}, point1.Col, point2.Col)
-			if complement.len() != 2 {
+			intersection12 := candidates1.intersection(candidates2)
+			if l := intersection12.len(); l < 2 {
 				return
 			}
-			// pair found
-			for _, candidates := range []cellCandidates{candidates1, candidates2} {
-				if candidates.deleteExcept(complement.slice()...) {
-					changed = true
+			c.forEachInRow(point1.Row, func(point3 app.Point, candidates3 cellCandidates, stop3 *bool) {
+				intersection13 := candidates1.intersection(candidates3)
+				if l := intersection13.len(); l < 2 {
+					return
 				}
-			}
-			if changed {
-				points = []app.Point{point1, point2}
-				pair = complement.slice()
-				*stop1, *stop2 = true, true
-			}*/
+				intersection23 := candidates2.intersection(candidates3)
+				if l := intersection23.len(); l < 2 {
+					return
+				}
+				complement := intersection12.union(intersection13).union(intersection23)
+				c.forEachInRow(point1.Row, func(_ app.Point, candidates4 cellCandidates, _ *bool) {
+					complement = complement.complement(candidates4)
+				}, point1.Col, point2.Col, point3.Col)
+				if complement.len() != 3 {
+					return
+				}
+				// triple found
+				for _, candidates := range []cellCandidates{candidates1, candidates2, candidates3} {
+					if candidates.deleteExcept(complement.slice()...) {
+						changed = true
+					}
+				}
+				if changed {
+					points = []app.Point{point1, point2, point3}
+					triple = complement.slice()
+					*stop1, *stop2, *stop3 = true, true, true
+				}
+			}, point1.Col, point2.Col)
 		}, point1.Col)
-	}
+
+		// watch column
+		c.forEachInCol(point1.Col, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			intersection12 := candidates1.intersection(candidates2)
+			if l := intersection12.len(); l < 2 {
+				return
+			}
+			c.forEachInCol(point1.Col, func(point3 app.Point, candidates3 cellCandidates, stop3 *bool) {
+				intersection13 := candidates1.intersection(candidates3)
+				if l := intersection13.len(); l < 2 {
+					return
+				}
+				intersection23 := candidates2.intersection(candidates3)
+				if l := intersection23.len(); l < 2 {
+					return
+				}
+				complement := intersection12.union(intersection13).union(intersection23)
+				c.forEachInCol(point1.Col, func(_ app.Point, candidates4 cellCandidates, _ *bool) {
+					complement = complement.complement(candidates4)
+				}, point1.Row, point2.Row, point3.Row)
+				if complement.len() != 3 {
+					return
+				}
+				// triple found
+				for _, candidates := range []cellCandidates{candidates1, candidates2, candidates3} {
+					if candidates.deleteExcept(complement.slice()...) {
+						changed = true
+					}
+				}
+				if changed {
+					points = []app.Point{point1, point2, point3}
+					triple = complement.slice()
+					*stop1, *stop2, *stop3 = true, true, true
+				}
+			}, point1.Row, point2.Row)
+		}, point1.Row)
+
+		// watch box
+		c.forEachInBox(point1, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			intersection12 := candidates1.intersection(candidates2)
+			if l := intersection12.len(); l < 2 {
+				return
+			}
+			c.forEachInBox(point1, func(point3 app.Point, candidates3 cellCandidates, stop3 *bool) {
+				intersection13 := candidates1.intersection(candidates3)
+				if l := intersection13.len(); l < 2 {
+					return
+				}
+				intersection23 := candidates2.intersection(candidates3)
+				if l := intersection23.len(); l < 2 {
+					return
+				}
+				complement := intersection12.union(intersection13).union(intersection23)
+				c.forEachInBox(point1, func(_ app.Point, candidates4 cellCandidates, _ *bool) {
+					complement = complement.complement(candidates4)
+				}, point1, point2, point3)
+				if complement.len() != 3 {
+					return
+				}
+				// triple found
+				for _, candidates := range []cellCandidates{candidates1, candidates2, candidates3} {
+					if candidates.deleteExcept(complement.slice()...) {
+						changed = true
+					}
+				}
+				if changed {
+					points = []app.Point{point1, point2, point3}
+					triple = complement.slice()
+					*stop1, *stop2, *stop3 = true, true, true
+				}
+			}, point1, point2)
+		}, point1)
+	})
+	return
 }
 
 func (c puzzleCandidates) in(point app.Point) []uint8 {
@@ -573,6 +653,7 @@ func (c cellCandidates) cloneWith(digits ...uint8) cellCandidates {
 	return clone
 }
 
+// c ⋂ with
 func (c cellCandidates) intersection(with cellCandidates) cellCandidates {
 	intersection := newCellCandidatesEmpty()
 	for candidate := range c {
@@ -581,6 +662,11 @@ func (c cellCandidates) intersection(with cellCandidates) cellCandidates {
 		}
 	}
 	return intersection
+}
+
+// c ⋃ with
+func (c cellCandidates) union(with cellCandidates) cellCandidates {
+	return c.cloneWith(with.slice()...)
 }
 
 // c \ of
