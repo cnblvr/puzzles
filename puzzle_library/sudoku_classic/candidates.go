@@ -10,17 +10,15 @@ import (
 	"strings"
 )
 
-type puzzleCandidates [size][size]map[uint8]struct{}
+type puzzleCandidates [size][size]cellCandidates
 
 func newPuzzleCandidates(fill bool) puzzleCandidates {
 	var candidates puzzleCandidates
 	for row := 0; row < size; row++ {
 		for col := 0; col < size; col++ {
-			candidates[row][col] = make(map[uint8]struct{})
+			candidates[row][col] = newCellCandidatesEmpty()
 			if fill {
-				for i := uint8(1); i <= size; i++ {
-					candidates[row][col][i] = struct{}{}
-				}
+				candidates[row][col].fill()
 			}
 		}
 	}
@@ -33,30 +31,16 @@ func (p puzzle) findSimpleCandidates() puzzleCandidates {
 		if val == 0 {
 			return
 		}
-		candidates[point.Row][point.Col] = make(map[uint8]struct{})
+		candidates[point.Row][point.Col] = newCellCandidatesEmpty()
 		// delete from vertical and horizontal lines and from boxes 3x3
 		rowBox, colBox := point.Row/sizeGrp*sizeGrp, point.Col/sizeGrp*sizeGrp
 		for i := 0; i < size; i++ {
-			delete(candidates[point.Row][i], val)
-			delete(candidates[i][point.Col], val)
-			delete(candidates[rowBox+i%sizeGrp][colBox+i/sizeGrp], val)
+			candidates[point.Row][i].delete(val)
+			candidates[i][point.Col].delete(val)
+			candidates[rowBox+i%sizeGrp][colBox+i/sizeGrp].delete(val)
 		}
 	})
 	return candidates
-}
-
-func (c puzzleCandidates) removeFrom(point app.Point, candidates []uint8) (removals []app.Point) {
-	isRemoval := false
-	for _, candidate := range candidates {
-		if _, ok := c[point.Row][point.Col][candidate]; ok {
-			isRemoval = true
-			delete(c[point.Row][point.Col], candidate)
-		}
-	}
-	if isRemoval {
-		removals = append(removals, point)
-	}
-	return
 }
 
 func (c puzzleCandidates) simpleRemoveAfterSet(point app.Point, value uint8) (removals []app.Point) {
@@ -83,27 +67,26 @@ func (c puzzleCandidates) simpleRemoveAfterSet(point app.Point, value uint8) (re
 }
 
 func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []uint8, removals []app.Point, changed bool) {
-	c.forEach(func(point1 app.Point, candidates1 map[uint8]struct{}, stop1 *bool) {
-		if len(candidates1) != 2 {
+	c.forEach(func(point1 app.Point, candidates1 cellCandidates, stop1 *bool) {
+		if candidates1.len() != 2 {
 			return
 		}
-		pairA := c.in(point1)
-		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
-			if len(candidates2) != 2 {
+		pairA := candidates1.slice()
+		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			if candidates2.len() != 2 {
 				return
 			}
-			if !bytes.Equal(pairA, c.in(point2)) {
+			if !bytes.Equal(pairA, candidates2.slice()) {
 				return
 			}
-			c.forEachInRow(point1.Row, func(point3 app.Point, _ map[uint8]struct{}, _ *bool) {
-				r := c.removeFrom(point3, pairA)
-				if len(r) > 0 {
-					removals = append(removals, r...)
+			c.forEachInRow(point1.Row, func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
+				if candidates3.delete(pairA...) {
+					removals = append(removals, point3)
 					changed = true
 				}
 			}, point1.Col, point2.Col)
 			if changed {
-				pairPoints = append(pairPoints, point1, point2)
+				pairPoints = []app.Point{point1, point2}
 				pair = pairA
 				*stop1, *stop2 = true, true
 			}
@@ -111,22 +94,21 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 		if changed {
 			return
 		}
-		c.forEachInCol(point1.Col, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
-			if len(candidates2) != 2 {
+		c.forEachInCol(point1.Col, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			if candidates2.len() != 2 {
 				return
 			}
-			if !bytes.Equal(pairA, c.in(point2)) {
+			if !bytes.Equal(pairA, candidates2.slice()) {
 				return
 			}
-			c.forEachInCol(point1.Col, func(point3 app.Point, _ map[uint8]struct{}, _ *bool) {
-				r := c.removeFrom(point3, pairA)
-				if len(r) > 0 {
-					removals = append(removals, r...)
+			c.forEachInCol(point1.Col, func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
+				if candidates3.delete(pairA...) {
+					removals = append(removals, point3)
 					changed = true
 				}
 			}, point1.Row, point2.Row)
 			if changed {
-				pairPoints = append(pairPoints, point1, point2)
+				pairPoints = []app.Point{point1, point2}
 				pair = pairA
 				*stop1, *stop2 = true, true
 			}
@@ -134,22 +116,21 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 		if changed {
 			return
 		}
-		c.forEachInBox(point1, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
-			if len(candidates2) != 2 {
+		c.forEachInBox(point1, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			if candidates2.len() != 2 {
 				return
 			}
-			if !bytes.Equal(pairA, c.in(point2)) {
+			if !bytes.Equal(pairA, candidates2.slice()) {
 				return
 			}
-			c.forEachInBox(point1, func(point3 app.Point, _ map[uint8]struct{}, _ *bool) {
-				r := c.removeFrom(point3, pairA)
-				if len(r) > 0 {
-					removals = append(removals, r...)
+			c.forEachInBox(point1, func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
+				if candidates3.delete(pairA...) {
+					removals = append(removals, point3)
 					changed = true
 				}
 			}, point1, point2)
 			if changed {
-				pairPoints = append(pairPoints, point1, point2)
+				pairPoints = []app.Point{point1, point2}
 				pair = pairA
 				*stop1, *stop2 = true, true
 			}
@@ -162,61 +143,39 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 }
 
 func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []uint8, removals []app.Point, changed bool) {
-	unique := func(prev map[uint8]struct{}, set []uint8) map[uint8]struct{} {
-		u := make(map[uint8]struct{})
-		if prev != nil {
-			for v := range prev {
-				u[v] = struct{}{}
-			}
-		}
-		for _, v := range set {
-			u[v] = struct{}{}
-		}
-		return u
-	}
-	uniqueToSet := func(u map[uint8]struct{}) (set []uint8) {
-		for v := range u {
-			set = append(set, v)
-		}
-		sort.Slice(set, func(i, j int) bool {
-			return set[i] < set[j]
-		})
-		return
-	}
-	c.forEach(func(point1 app.Point, candidates1 map[uint8]struct{}, stop1 *bool) {
-		if l := len(candidates1); l < 2 || 3 < l {
+	c.forEach(func(point1 app.Point, candidates1 cellCandidates, stop1 *bool) {
+		if l := candidates1.len(); l < 2 || 3 < l {
 			return
 		}
-		uniqueA := unique(nil, c.in(point1))
+		uniqueA := candidates1.clone() // TODO .union
 
 		// watch row
-		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
-			if l := len(candidates2); l < 2 || 3 < l {
+		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			if l := candidates2.len(); l < 2 || 3 < l {
 				return
 			}
-			uniqueB := unique(uniqueA, c.in(point2))
-			if len(uniqueB) > 3 {
+			uniqueB := uniqueA.cloneWith(candidates2.slice()...)
+			if uniqueB.len() > 3 {
 				return
 			}
-			c.forEachInRow(point1.Row, func(point3 app.Point, candidates3 map[uint8]struct{}, stop3 *bool) {
-				if l := len(candidates3); l < 2 || 3 < l {
+			c.forEachInRow(point1.Row, func(point3 app.Point, candidates3 cellCandidates, stop3 *bool) {
+				if l := candidates3.len(); l < 2 || 3 < l {
 					return
 				}
-				uniqueC := unique(uniqueB, c.in(point3))
-				if len(uniqueC) > 3 {
+				uniqueC := uniqueB.cloneWith(candidates3.slice()...)
+				if uniqueC.len() > 3 {
 					return
 				}
 				// triple found
-				c.forEachInRow(point1.Row, func(point4 app.Point, _ map[uint8]struct{}, _ *bool) {
-					r := c.removeFrom(point4, uniqueToSet(uniqueC))
-					if len(r) > 0 {
-						removals = append(removals, r...)
+				c.forEachInRow(point1.Row, func(point4 app.Point, candidates4 cellCandidates, _ *bool) {
+					if candidates4.delete(uniqueC.slice()...) {
+						removals = append(removals, point4)
 						changed = true
 					}
 				}, point1.Col, point2.Col, point3.Col)
 				if changed {
-					points = append(points, point1, point2, point3)
-					triple = uniqueToSet(uniqueC)
+					points = []app.Point{point1, point2, point3}
+					triple = uniqueC.slice()
 					*stop1, *stop2, *stop3 = true, true, true
 				}
 			}, point1.Col, point2.Col)
@@ -226,33 +185,32 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 		}
 
 		// watch column
-		c.forEachInCol(point1.Col, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
-			if l := len(candidates2); l < 2 || 3 < l {
+		c.forEachInCol(point1.Col, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			if l := candidates2.len(); l < 2 || 3 < l {
 				return
 			}
-			uniqueB := unique(uniqueA, c.in(point2))
-			if len(uniqueB) > 3 {
+			uniqueB := uniqueA.cloneWith(candidates2.slice()...)
+			if uniqueB.len() > 3 {
 				return
 			}
-			c.forEachInCol(point1.Col, func(point3 app.Point, candidates3 map[uint8]struct{}, stop3 *bool) {
-				if l := len(candidates3); l < 2 || 3 < l {
+			c.forEachInCol(point1.Col, func(point3 app.Point, candidates3 cellCandidates, stop3 *bool) {
+				if l := candidates3.len(); l < 2 || 3 < l {
 					return
 				}
-				uniqueC := unique(uniqueB, c.in(point3))
-				if len(uniqueC) > 3 {
+				uniqueC := uniqueB.cloneWith(candidates3.slice()...)
+				if uniqueC.len() > 3 {
 					return
 				}
 				// triple found
-				c.forEachInCol(point1.Col, func(point4 app.Point, _ map[uint8]struct{}, _ *bool) {
-					r := c.removeFrom(point4, uniqueToSet(uniqueC))
-					if len(r) > 0 {
-						removals = append(removals, r...)
+				c.forEachInCol(point1.Col, func(point4 app.Point, candidates4 cellCandidates, _ *bool) {
+					if candidates4.delete(uniqueC.slice()...) {
+						removals = append(removals, point4)
 						changed = true
 					}
 				}, point1.Row, point2.Row, point3.Row)
 				if changed {
-					points = append(points, point1, point2, point3)
-					triple = uniqueToSet(uniqueC)
+					points = []app.Point{point1, point2, point3}
+					triple = uniqueC.slice()
 					*stop1, *stop2, *stop3 = true, true, true
 				}
 			}, point1.Row, point2.Row)
@@ -262,33 +220,32 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 		}
 
 		// watch box
-		c.forEachInBox(point1, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
-			if l := len(candidates2); l < 2 || 3 < l {
+		c.forEachInBox(point1, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			if l := candidates2.len(); l < 2 || 3 < l {
 				return
 			}
-			uniqueB := unique(uniqueA, c.in(point2))
-			if len(uniqueB) > 3 {
+			uniqueB := uniqueA.cloneWith(candidates2.slice()...)
+			if uniqueB.len() > 3 {
 				return
 			}
-			c.forEachInBox(point1, func(point3 app.Point, candidates3 map[uint8]struct{}, stop3 *bool) {
-				if l := len(candidates3); l < 2 || 3 < l {
+			c.forEachInBox(point1, func(point3 app.Point, candidates3 cellCandidates, stop3 *bool) {
+				if l := candidates3.len(); l < 2 || 3 < l {
 					return
 				}
-				uniqueC := unique(uniqueB, c.in(point3))
-				if len(uniqueC) > 3 {
+				uniqueC := uniqueB.cloneWith(candidates3.slice()...)
+				if uniqueC.len() > 3 {
 					return
 				}
 				// triple found
-				c.forEachInBox(point1, func(point4 app.Point, _ map[uint8]struct{}, _ *bool) {
-					r := c.removeFrom(point4, uniqueToSet(uniqueC))
-					if len(r) > 0 {
-						removals = append(removals, r...)
+				c.forEachInBox(point1, func(point4 app.Point, candidates4 cellCandidates, _ *bool) {
+					if candidates4.delete(uniqueC.slice()...) {
+						removals = append(removals, point4)
 						changed = true
 					}
 				}, point1, point2, point3)
 				if changed {
-					points = append(points, point1, point2, point3)
-					triple = uniqueToSet(uniqueC)
+					points = []app.Point{point1, point2, point3}
+					triple = uniqueC.slice()
 					*stop1, *stop2, *stop3 = true, true, true
 				}
 			}, point1, point2)
@@ -301,13 +258,125 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 }
 
 func (c puzzleCandidates) strategyHiddenPair() (points []app.Point, pair []uint8, changed bool) {
-	c.forEach(func(point1 app.Point, candidates1 map[uint8]struct{}, stop1 *bool) {
+	c.forEach(func(point1 app.Point, candidates1 cellCandidates, stop1 *bool) {
 
 		// watch row
-		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 map[uint8]struct{}, stop2 *bool) {
-			// TODO
+		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			intersection2 := candidates1.intersection(candidates2)
+			if intersection2.len() < 2 {
+				return
+			}
+			complement := intersection2.clone()
+			c.forEachInRow(point1.Row, func(_ app.Point, candidates3 cellCandidates, _ *bool) {
+				complement = complement.complement(candidates3)
+			}, point1.Col, point2.Col)
+			if complement.len() != 2 {
+				return
+			}
+			// pair found
+			for _, candidates := range []cellCandidates{candidates1, candidates2} {
+				if candidates.deleteExcept(complement.slice()...) {
+					changed = true
+				}
+			}
+			if changed {
+				points = []app.Point{point1, point2}
+				pair = complement.slice()
+				*stop1, *stop2 = true, true
+			}
 		}, point1.Col)
+
+		// watch column
+		c.forEachInCol(point1.Col, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			intersection2 := candidates1.intersection(candidates2)
+			if intersection2.len() < 2 {
+				return
+			}
+			complement := intersection2.clone()
+			c.forEachInCol(point1.Col, func(_ app.Point, candidates3 cellCandidates, _ *bool) {
+				complement = complement.complement(candidates3)
+			}, point1.Row, point2.Row)
+			if complement.len() != 2 {
+				return
+			}
+			// pair found
+			for _, candidates := range []cellCandidates{candidates1, candidates2} {
+				if candidates.deleteExcept(complement.slice()...) {
+					changed = true
+				}
+			}
+			if changed {
+				points = []app.Point{point1, point2}
+				pair = complement.slice()
+				*stop1, *stop2 = true, true
+			}
+		}, point1.Row)
+
+		// watch box
+		c.forEachInBox(point1, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			intersection2 := candidates1.intersection(candidates2)
+			if intersection2.len() < 2 {
+				return
+			}
+			complement := intersection2.clone()
+			c.forEachInBox(point1, func(_ app.Point, candidates3 cellCandidates, _ *bool) {
+				complement = complement.complement(candidates3)
+			}, point1, point2)
+			if complement.len() != 2 {
+				return
+			}
+			// pair found
+			for _, candidates := range []cellCandidates{candidates1, candidates2} {
+				if candidates.deleteExcept(complement.slice()...) {
+					changed = true
+				}
+			}
+			if changed {
+				points = []app.Point{point1, point2}
+				pair = complement.slice()
+				*stop1, *stop2 = true, true
+			}
+		}, point1)
 	})
+	return
+}
+
+func (c puzzleCandidates) strategyHiddenTriple() (points []app.Point, triple []uint8, changed bool) {
+	c.forEach(func(point1 app.Point, candidates1 cellCandidates, stop1 *bool) {
+
+		// watch row
+		c.forEachInRow(point1.Row, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+			intersection2 := candidates1.intersection(candidates2)
+			c.forEachInRow(point1.Row, func(point3 app.Point, candidates3 cellCandidates, stop3 *bool) {
+				intersection3 := intersection2.intersection(candidates3)
+				if intersection3.len() < 2 {
+					return
+				}
+			}, point1.Col, point2.Col)
+			/*complement := intersection2.clone()
+			c.forEachInRow(point1.Row, func(_ app.Point, candidates3 cellCandidates, _ *bool) {
+				complement = complement.complement(candidates3)
+			}, point1.Col, point2.Col)
+			if complement.len() != 2 {
+				return
+			}
+			// pair found
+			for _, candidates := range []cellCandidates{candidates1, candidates2} {
+				if candidates.deleteExcept(complement.slice()...) {
+					changed = true
+				}
+			}
+			if changed {
+				points = []app.Point{point1, point2}
+				pair = complement.slice()
+				*stop1, *stop2 = true, true
+			}*/
+		}, point1.Col)
+	}
+}
+
+func (c puzzleCandidates) in(point app.Point) []uint8 {
+	return c[point.Row][point.Col].slice()
 }
 
 func (c puzzleCandidates) String() string {
@@ -316,21 +385,12 @@ func (c puzzleCandidates) String() string {
 }
 
 func (c puzzleCandidates) MarshalJSON() ([]byte, error) {
-	keysFromCandidates := func(c map[uint8]struct{}) (out []int8) {
-		for i := uint8(1); i <= size; i++ {
-			if _, ok := c[i]; ok {
-				out = append(out, int8(i))
-			}
-		}
-		return
-	}
-
 	out := make(map[string][]int8)
-	c.forEach(func(point app.Point, candidates map[uint8]struct{}, _ *bool) {
-		if len(candidates) == 0 {
+	c.forEach(func(point app.Point, candidates cellCandidates, _ *bool) {
+		if candidates.len() == 0 {
 			return
 		}
-		out[point.String()] = keysFromCandidates(candidates)
+		out[point.String()] = candidates.sliceInt8()
 	})
 	return json.Marshal(out)
 }
@@ -347,23 +407,13 @@ func (c *puzzleCandidates) UnmarshalJSON(bts []byte) error {
 			return errors.Wrapf(err, "point '%s' invalid", pointStr)
 		}
 		for _, candidate := range candidates {
-			c[point.Row][point.Col][uint8(candidate)] = struct{}{}
+			c[point.Row][point.Col].add(uint8(candidate))
 		}
 	}
 	return nil
 }
 
-func (c puzzleCandidates) in(point app.Point) (candidates []uint8) {
-	for candidate := range c[point.Row][point.Col] {
-		candidates = append(candidates, candidate)
-	}
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i] < candidates[j]
-	})
-	return
-}
-
-func (c puzzleCandidates) forEach(fn func(point app.Point, candidates map[uint8]struct{}, stop *bool), excludePoints ...app.Point) {
+func (c puzzleCandidates) forEach(fn func(point app.Point, candidates cellCandidates, stop *bool), excludePoints ...app.Point) {
 	excludes := make(map[app.Point]struct{})
 	for _, point := range excludePoints {
 		excludes[point] = struct{}{}
@@ -383,7 +433,7 @@ func (c puzzleCandidates) forEach(fn func(point app.Point, candidates map[uint8]
 	}
 }
 
-func (c puzzleCandidates) forEachInRow(row int, fn func(point app.Point, candidates map[uint8]struct{}, stop *bool), excludeColumns ...int) {
+func (c puzzleCandidates) forEachInRow(row int, fn func(point app.Point, candidates cellCandidates, stop *bool), excludeColumns ...int) {
 	excludes := make(map[int]struct{})
 	for _, col := range excludeColumns {
 		excludes[col] = struct{}{}
@@ -400,7 +450,7 @@ func (c puzzleCandidates) forEachInRow(row int, fn func(point app.Point, candida
 	}
 }
 
-func (c puzzleCandidates) forEachInCol(col int, fn func(point app.Point, candidates map[uint8]struct{}, stop *bool), excludeRows ...int) {
+func (c puzzleCandidates) forEachInCol(col int, fn func(point app.Point, candidates cellCandidates, stop *bool), excludeRows ...int) {
 	excludes := make(map[int]struct{})
 	for _, row := range excludeRows {
 		excludes[row] = struct{}{}
@@ -417,7 +467,7 @@ func (c puzzleCandidates) forEachInCol(col int, fn func(point app.Point, candida
 	}
 }
 
-func (c puzzleCandidates) forEachInBox(point app.Point, fn func(point app.Point, candidates map[uint8]struct{}, stop *bool), excludePoints ...app.Point) {
+func (c puzzleCandidates) forEachInBox(point app.Point, fn func(point app.Point, candidates cellCandidates, stop *bool), excludePoints ...app.Point) {
 	excludes := make(map[app.Point]struct{})
 	for _, point := range excludePoints {
 		excludes[point] = struct{}{}
@@ -438,11 +488,113 @@ func (c puzzleCandidates) forEachInBox(point app.Point, fn func(point app.Point,
 	}
 }
 
-func (c puzzleCandidates) debug(state *puzzle) string {
-	is := func(candidates map[uint8]struct{}, d uint8) bool {
-		_, ok := candidates[d]
-		return ok
+type cellCandidates map[uint8]struct{}
+
+func newCellCandidatesEmpty() cellCandidates {
+	return make(cellCandidates)
+}
+
+func newCellCandidatesFilled() cellCandidates {
+	c := newCellCandidatesEmpty()
+	c.fill()
+	return c
+}
+
+func newCellCandidatesWith(digits ...uint8) cellCandidates {
+	c := newCellCandidatesEmpty()
+	c.add(digits...)
+	return c
+}
+
+func (c cellCandidates) len() int {
+	return len(c)
+}
+
+func (c cellCandidates) slice() (candidates []uint8) {
+	for candidate := range c {
+		candidates = append(candidates, candidate)
 	}
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i] < candidates[j]
+	})
+	return
+}
+
+func (c cellCandidates) sliceInt8() []int8 {
+	u8 := c.slice()
+	out := make([]int8, len(u8))
+	for idx, u := range u8 {
+		out[idx] = int8(u)
+	}
+	return out
+}
+
+func (c cellCandidates) has(value uint8) bool {
+	_, ok := c[value]
+	return ok
+}
+
+func (c cellCandidates) delete(digits ...uint8) bool {
+	out := false
+	for _, digit := range digits {
+		if c.has(digit) {
+			delete(c, digit)
+			out = true
+		}
+	}
+	return out
+}
+
+func (c cellCandidates) deleteExcept(digits ...uint8) bool {
+	forDelete := c.complement(newCellCandidatesWith(digits...))
+	return c.delete(forDelete.slice()...)
+}
+
+func (c cellCandidates) add(digits ...uint8) {
+	for _, digit := range digits {
+		c[digit] = struct{}{}
+	}
+}
+
+func (c cellCandidates) fill() {
+	for i := uint8(1); i <= size; i++ {
+		c[i] = struct{}{}
+	}
+}
+
+func (c cellCandidates) clone() cellCandidates {
+	return newCellCandidatesWith(c.slice()...)
+}
+
+func (c cellCandidates) cloneWith(digits ...uint8) cellCandidates {
+	clone := newCellCandidatesEmpty()
+	clone.add(c.slice()...)
+	clone.add(digits...)
+	return clone
+}
+
+func (c cellCandidates) intersection(with cellCandidates) cellCandidates {
+	intersection := newCellCandidatesEmpty()
+	for candidate := range c {
+		if with.has(candidate) {
+			intersection.add(candidate)
+		}
+	}
+	return intersection
+}
+
+// c \ of
+func (c cellCandidates) complement(of cellCandidates) cellCandidates {
+	complement := newCellCandidatesEmpty()
+	for candidate := range c {
+		if !of.has(candidate) {
+			complement.add(candidate)
+		}
+	}
+	return complement
+}
+
+func (c puzzleCandidates) debug(state *puzzle) string {
 	var out strings.Builder
 	out.WriteString("╔═══════╤═══════╤═══════╦═══════╤═══════╤═══════╦═══════╤═══════╤═══════╗  \n")
 	for row := 0; row < size; row++ {
@@ -462,7 +614,7 @@ func (c puzzleCandidates) debug(state *puzzle) string {
 					}
 				} else {
 					for i := uint8(0); i < sizeGrp; i++ {
-						if digit := d + i; is(cell, digit) {
+						if digit := d + i; cell.has(digit) {
 							out.WriteString(fmt.Sprintf("%d ", digit))
 						} else {
 							out.WriteString("  ")
