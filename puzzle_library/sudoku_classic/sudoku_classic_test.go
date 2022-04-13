@@ -694,7 +694,7 @@ func TestSolveSimpleSteps(t *testing.T) {
 
 		// PAIRS OR TRIPLES BOX/LINE REDUCTION
 
-		/*{ // TODO Pair/Triple BLR
+		{
 			name:  "Strategy Lesson Pair Box/Line Reduction",
 			p:     ".16..78.3.9.8.....87...126..48...3..65...9.82.39...65..6.9...2..8...29369246..51.",
 			wantP: "416527893592836147873491265148265379657319482239784651361958724785142936924673518",
@@ -703,7 +703,7 @@ func TestSolveSimpleSteps(t *testing.T) {
 			name:  "Strategy Lesson Triple Box/Line Reduction",
 			p:     ".2.9437159.4...6..75.....4.5..48....2.....4534..352....42....81..5..426..9.2.85.4",
 			wantP: "826943715934571628751826349563487192278619453419352876642735981385194267197268534",
-		},*/
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

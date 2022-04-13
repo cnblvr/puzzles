@@ -304,6 +304,24 @@ func (s puzzleStepHiddenPairOrTriple) Description() string {
 	return fmt.Sprintf("has candidates %v in points %s", s.set, s.points)
 }
 
+type puzzleStepBLRPairOrTriple struct {
+	points             []app.Point
+	value              uint8
+	removalsCandidates []app.Point
+}
+
+func (s puzzleStepBLRPairOrTriple) Strategy() string {
+	if len(s.points) == 2 {
+		return "Pair Box/Line Reduction"
+	} else {
+		return "Triple Box/Line Reduction"
+	}
+}
+
+func (s puzzleStepBLRPairOrTriple) Description() string {
+	return fmt.Sprintf("has candidate %d in points %v and remove candidates in points %v", s.value, s.points, s.removalsCandidates)
+}
+
 func (p *puzzle) solve(c *puzzleCandidates, chanSteps chan<- puzzleStep) (changed bool, err error) {
 	if c == nil {
 		*c = p.findSimpleCandidates()
@@ -433,6 +451,15 @@ func (p *puzzle) solve(c *puzzleCandidates, chanSteps chan<- puzzleStep) (change
 			makeSteps(puzzleStepHiddenPairOrTriple{
 				points: points,
 				set:    triple,
+			})
+			continue
+		}
+		// strategy Box/Line Reduction Pair or Triple
+		if points, value, removals, ok := c.strategyBLRPairTriple(); ok {
+			makeSteps(puzzleStepBLRPairOrTriple{
+				points:             points,
+				value:              value,
+				removalsCandidates: removals,
 			})
 			continue
 		}

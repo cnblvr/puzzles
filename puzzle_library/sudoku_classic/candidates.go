@@ -456,10 +456,49 @@ func (c puzzleCandidates) strategyHiddenTriple() (points []app.Point, triple []u
 }
 
 // strategy Pair or Triple Box/Line Reduction
-func (c puzzleCandidates) strategyPairTripleBLR() (points []app.Point, value uint8, removals []app.Point, changed bool) {
-	c.forEachBox(func(pointBox1 app.Point, _ *bool) {
+func (c puzzleCandidates) strategyBLRPairTriple() (points []app.Point, value uint8, removals []app.Point, changed bool) {
+	c.forEachBox(func(pointBox1 app.Point, stop1 *bool) {
 		for digit := uint8(1); digit <= size; digit++ {
-			// TODO
+			rows, cols := newCellCandidatesEmpty(), newCellCandidatesEmpty() // TODO is Set, not cellCandidates
+			pointsDigit := make([]app.Point, 0, 3)
+			c.forEachInBox(pointBox1, func(point2 app.Point, candidates2 cellCandidates, _ *bool) {
+				if candidates2.has(digit) {
+					rows.add(uint8(point2.Row))
+					cols.add(uint8(point2.Col))
+					pointsDigit = append(pointsDigit, point2)
+				}
+			})
+			if l := len(pointsDigit); l < 2 || 3 < l {
+				continue
+			}
+			if rows.len() == 1 {
+				c.forEachInRow(int(rows.slice()[0]), func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
+					if candidates3.delete(digit) {
+						removals = append(removals, point3)
+						changed = true
+					}
+				}, cols.sliceInt()...)
+			}
+			if changed {
+				value = digit
+				points = pointsDigit
+				*stop1 = true
+				return
+			}
+			if cols.len() == 1 {
+				c.forEachInCol(int(cols.slice()[0]), func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
+					if candidates3.delete(digit) {
+						removals = append(removals, point3)
+						changed = true
+					}
+				}, rows.sliceInt()...)
+			}
+			if changed {
+				value = digit
+				points = pointsDigit
+				*stop1 = true
+				return
+			}
 		}
 	})
 	return
@@ -636,6 +675,15 @@ func (c cellCandidates) sliceInt8() []int8 {
 	out := make([]int8, len(u8))
 	for idx, u := range u8 {
 		out[idx] = int8(u)
+	}
+	return out
+}
+
+func (c cellCandidates) sliceInt() []int {
+	u8 := c.slice()
+	out := make([]int, len(u8))
+	for idx, u := range u8 {
+		out[idx] = int(u)
 	}
 	return out
 }
