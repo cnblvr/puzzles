@@ -562,6 +562,17 @@ func (c puzzleCandidates) strategyBoxLineReductionPairTriple() (points []app.Poi
 	return
 }
 
+func (c puzzleCandidates) strategyXWing() (points []app.Point, value uint8, removals []app.Point, changed bool) {
+	for digit := uint8(1); digit <= size; digit++ {
+		for row := 0; row < size; row++ {
+			c.forEachInRow(row, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+				// TODO
+			})
+		}
+	}
+	return
+}
+
 func (c puzzleCandidates) in(point app.Point) []uint8 {
 	return c[point.Row][point.Col].slice()
 }
