@@ -2,6 +2,7 @@ package sudoku_classic
 
 import (
 	"bytes"
+	"github.com/cnblvr/puzzles/app"
 	"testing"
 )
 
@@ -196,4 +197,72 @@ func Test_TODO_Delete(t *testing.T) {
 		complement = complement.complement(o)
 	}
 	t.Logf("%v", complement.slice())
+}
+
+func TestBoxIdFrom(t *testing.T) {
+	tests := []struct {
+		name  string
+		point app.Point
+		want  uint8
+	}{
+		{
+			name:  "a1",
+			point: app.Point{Row: 0, Col: 0},
+			want:  1,
+		},
+		{
+			name:  "b1",
+			point: app.Point{Row: 1, Col: 0},
+			want:  1,
+		},
+		{
+			name:  "b9",
+			point: app.Point{Row: 1, Col: 8},
+			want:  3,
+		},
+		{
+			name:  "c4",
+			point: app.Point{Row: 2, Col: 3},
+			want:  2,
+		},
+		{
+			name:  "d3",
+			point: app.Point{Row: 3, Col: 2},
+			want:  4,
+		},
+		{
+			name:  "d5",
+			point: app.Point{Row: 3, Col: 4},
+			want:  5,
+		},
+		{
+			name:  "e5",
+			point: app.Point{Row: 4, Col: 4},
+			want:  5,
+		},
+		{
+			name:  "f8",
+			point: app.Point{Row: 5, Col: 7},
+			want:  6,
+		},
+		{
+			name:  "h1",
+			point: app.Point{Row: 7, Col: 0},
+			want:  7,
+		},
+		{
+			name:  "i9",
+			point: app.Point{Row: 8, Col: 8},
+			want:  9,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BoxIdFrom(tt.point)
+			if got != tt.want {
+				t.Errorf("BoxIdFrom() got = %d, want = %d", got, tt.want)
+				return
+			}
+		})
+	}
 }

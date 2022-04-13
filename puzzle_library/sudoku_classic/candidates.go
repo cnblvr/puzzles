@@ -455,8 +455,8 @@ func (c puzzleCandidates) strategyHiddenTriple() (points []app.Point, triple []u
 	return
 }
 
-// strategy Pair or Triple Box/Line Reduction
-func (c puzzleCandidates) strategyBLRPairTriple() (points []app.Point, value uint8, removals []app.Point, changed bool) {
+// strategy Pointing Pair or Triple
+func (c puzzleCandidates) strategyPointingPairTriple() (points []app.Point, value uint8, removals []app.Point, changed bool) {
 	c.forEachBox(func(pointBox1 app.Point, stop1 *bool) {
 		for digit := uint8(1); digit <= size; digit++ {
 			rows, cols := newCellCandidatesEmpty(), newCellCandidatesEmpty() // TODO is Set, not cellCandidates
@@ -501,6 +501,64 @@ func (c puzzleCandidates) strategyBLRPairTriple() (points []app.Point, value uin
 			}
 		}
 	})
+	return
+}
+
+func (c puzzleCandidates) strategyBoxLineReductionPairTriple() (points []app.Point, value uint8, removals []app.Point, changed bool) {
+	for row := 0; row < size; row++ {
+		for digit := uint8(1); digit <= size; digit++ {
+			boxes := newCellCandidatesEmpty()
+			pointsDigit := make([]app.Point, 0, 3)
+			c.forEachInRow(row, func(point2 app.Point, candidates2 cellCandidates, _ *bool) {
+				if candidates2.has(digit) {
+					boxes.add(BoxIdFrom(point2))
+					pointsDigit = append(pointsDigit, point2)
+				}
+			})
+			if boxes.len() != 1 {
+				continue
+			}
+			// candidates in one box and in row found
+			c.forEachInBox(pointsDigit[0], func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
+				if candidates3.delete(digit) {
+					removals = append(removals, point3)
+					changed = true
+				}
+			}, pointsDigit...)
+			if changed {
+				points = pointsDigit
+				value = digit
+				return
+			}
+		}
+	}
+	for col := 0; col < size; col++ {
+		for digit := uint8(1); digit <= size; digit++ {
+			boxes := newCellCandidatesEmpty()
+			pointsDigit := make([]app.Point, 0, 3)
+			c.forEachInCol(col, func(point2 app.Point, candidates2 cellCandidates, _ *bool) {
+				if candidates2.has(digit) {
+					boxes.add(BoxIdFrom(point2))
+					pointsDigit = append(pointsDigit, point2)
+				}
+			})
+			if boxes.len() != 1 {
+				continue
+			}
+			// candidates in one box and in column found
+			c.forEachInBox(pointsDigit[0], func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
+				if candidates3.delete(digit) {
+					removals = append(removals, point3)
+					changed = true
+				}
+			}, pointsDigit...)
+			if changed {
+				points = pointsDigit
+				value = digit
+				return
+			}
+		}
+	}
 	return
 }
 
@@ -757,6 +815,11 @@ func (c cellCandidates) complement(of cellCandidates) cellCandidates {
 		}
 	}
 	return complement
+}
+
+// BoxIdFrom returns 1, 2, 3, 4, 5, 6, 7, 8 or 9 as box 3x3 id.
+func BoxIdFrom(point app.Point) uint8 {
+	return uint8(point.Row/sizeGrp*sizeGrp + point.Col/sizeGrp + 1)
 }
 
 func (c puzzleCandidates) debug(state *puzzle) string {

@@ -266,7 +266,11 @@ func (s puzzleStepSet) Strategy() string {
 }
 
 func (s puzzleStepSet) Description() string {
-	return fmt.Sprintf("set %d in point %s with removals in %v", s.value, s.point, s.removalsCandidates)
+	out := fmt.Sprintf("set %d in point %s", s.value, s.point)
+	if len(s.removalsCandidates) > 0 {
+		out += fmt.Sprintf(" with removals in %v", s.removalsCandidates)
+	}
+	return out
 }
 
 type puzzleStepNakedPairOrTriple struct {
@@ -304,21 +308,39 @@ func (s puzzleStepHiddenPairOrTriple) Description() string {
 	return fmt.Sprintf("has candidates %v in points %s", s.set, s.points)
 }
 
-type puzzleStepBLRPairOrTriple struct {
+type puzzleStepPointingPairOrTriple struct {
 	points             []app.Point
 	value              uint8
 	removalsCandidates []app.Point
 }
 
-func (s puzzleStepBLRPairOrTriple) Strategy() string {
+func (s puzzleStepPointingPairOrTriple) Strategy() string {
 	if len(s.points) == 2 {
-		return "Pair Box/Line Reduction"
+		return "Pointing Pair"
 	} else {
-		return "Triple Box/Line Reduction"
+		return "Pointing Triple"
 	}
 }
 
-func (s puzzleStepBLRPairOrTriple) Description() string {
+func (s puzzleStepPointingPairOrTriple) Description() string {
+	return fmt.Sprintf("has candidate %d in points %v and remove candidates in points %v", s.value, s.points, s.removalsCandidates)
+}
+
+type puzzleStepBoxLineReductionPairOrTriple struct {
+	points             []app.Point
+	value              uint8
+	removalsCandidates []app.Point
+}
+
+func (s puzzleStepBoxLineReductionPairOrTriple) Strategy() string {
+	if len(s.points) == 2 {
+		return "Box/Line Reduction Pair"
+	} else {
+		return "Box/Line Reduction Triple"
+	}
+}
+
+func (s puzzleStepBoxLineReductionPairOrTriple) Description() string {
 	return fmt.Sprintf("has candidate %d in points %v and remove candidates in points %v", s.value, s.points, s.removalsCandidates)
 }
 
@@ -454,9 +476,18 @@ func (p *puzzle) solve(c *puzzleCandidates, chanSteps chan<- puzzleStep) (change
 			})
 			continue
 		}
-		// strategy Box/Line Reduction Pair or Triple
-		if points, value, removals, ok := c.strategyBLRPairTriple(); ok {
-			makeSteps(puzzleStepBLRPairOrTriple{
+		// strategy Pointing Pair or Triple
+		if points, value, removals, ok := c.strategyPointingPairTriple(); ok {
+			makeSteps(puzzleStepPointingPairOrTriple{
+				points:             points,
+				value:              value,
+				removalsCandidates: removals,
+			})
+			continue
+		}
+		// strategy Box Line Reduction Pair or Triple
+		if points, value, removals, ok := c.strategyBoxLineReductionPairTriple(); ok {
+			makeSteps(puzzleStepBoxLineReductionPairOrTriple{
 				points:             points,
 				value:              value,
 				removalsCandidates: removals,
