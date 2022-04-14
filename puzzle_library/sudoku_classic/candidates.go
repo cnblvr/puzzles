@@ -562,12 +562,114 @@ func (c puzzleCandidates) strategyBoxLineReductionPairTriple() (points []app.Poi
 	return
 }
 
-func (c puzzleCandidates) strategyXWing() (points []app.Point, value uint8, removals []app.Point, changed bool) {
+func (c puzzleCandidates) strategyXWing() (pairA, pairB []app.Point, value uint8, removals []app.Point, changed bool) {
 	for digit := uint8(1); digit <= size; digit++ {
+		type tPair struct {
+			unit int
+			pair []app.Point
+		}
+		var pairsOnRow []tPair
 		for row := 0; row < size; row++ {
+			rowPoints := make([]app.Point, 0)
 			c.forEachInRow(row, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
-				// TODO
+				if candidates2.has(digit) {
+					rowPoints = append(rowPoints, point2)
+				}
+				if len(rowPoints) > 2 {
+					*stop2 = true
+				}
 			})
+			if l := len(rowPoints); l != 2 {
+				continue
+			}
+			pairsOnRow = append(pairsOnRow, tPair{
+				unit: row,
+				pair: rowPoints,
+			})
+		}
+		if len(pairsOnRow) < 2 {
+			continue
+		}
+		for a := 0; a < len(pairsOnRow); a++ {
+			for b := a + 1; b < len(pairsOnRow); b++ {
+				col1, col2 := -1, -1
+				if pairsOnRow[a].pair[0].Col == pairsOnRow[b].pair[0].Col {
+					col1 = pairsOnRow[a].pair[0].Col
+				}
+				if pairsOnRow[a].pair[1].Col == pairsOnRow[b].pair[1].Col {
+					col2 = pairsOnRow[a].pair[1].Col
+				}
+				if col1 == -1 || col2 == -1 {
+					continue
+				}
+				// pairs in row found
+				removeCandidates := func(point2 app.Point, candidates2 cellCandidates, _ *bool) {
+					if candidates2.delete(digit) {
+						removals = append(removals, point2)
+						changed = true
+					}
+				}
+				c.forEachInCol(col1, removeCandidates, pairsOnRow[a].unit, pairsOnRow[b].unit)
+				c.forEachInCol(col2, removeCandidates, pairsOnRow[a].unit, pairsOnRow[b].unit)
+				if changed {
+					value = digit
+					pairA, pairB = pairsOnRow[a].pair, pairsOnRow[b].pair
+					return
+				}
+			}
+		}
+
+		// search in columns
+
+		var pairsOnCol []tPair
+		for col := 0; col < size; col++ {
+			colPoints := make([]app.Point, 0)
+			c.forEachInCol(col, func(point2 app.Point, candidates2 cellCandidates, stop2 *bool) {
+				if candidates2.has(digit) {
+					colPoints = append(colPoints, point2)
+				}
+				if len(colPoints) > 2 {
+					*stop2 = true
+				}
+			})
+			if l := len(colPoints); l != 2 {
+				continue
+			}
+			pairsOnCol = append(pairsOnCol, tPair{
+				unit: col,
+				pair: colPoints,
+			})
+		}
+		if len(pairsOnCol) < 2 {
+			continue
+		}
+		for a := 0; a < len(pairsOnCol); a++ {
+			for b := a + 1; b < len(pairsOnCol); b++ {
+				row1, row2 := -1, -1
+				if pairsOnCol[a].pair[0].Row == pairsOnCol[b].pair[0].Row {
+					row1 = pairsOnCol[a].pair[0].Row
+				}
+				if pairsOnCol[a].pair[1].Row == pairsOnCol[b].pair[1].Row {
+					row2 = pairsOnCol[a].pair[1].Row
+				}
+				if row1 == -1 || row2 == -1 {
+					continue
+				}
+				// pairs in column found
+				removeCandidates := func(point2 app.Point, candidates2 cellCandidates, _ *bool) {
+					if candidates2.delete(digit) {
+						removals = append(removals, point2)
+						changed = true
+					}
+				}
+				c.forEachInRow(row1, removeCandidates, pairsOnCol[a].unit, pairsOnCol[b].unit)
+				c.forEachInRow(row2, removeCandidates, pairsOnCol[a].unit, pairsOnCol[b].unit)
+				if changed {
+					value = digit
+					pairA, pairB = pairsOnCol[a].pair, pairsOnCol[b].pair
+					return
+				}
+			}
 		}
 	}
 	return
