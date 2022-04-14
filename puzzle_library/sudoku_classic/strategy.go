@@ -5,19 +5,14 @@ import (
 	"github.com/cnblvr/puzzles/app"
 )
 
-type puzzleStep interface {
-	Strategy() string
-	Description() string
-}
-
 type puzzleStepSet struct {
-	strategy           string
+	strategy           app.PuzzleStrategy
 	point              app.Point
 	value              uint8
 	removalsCandidates []app.Point
 }
 
-func (s puzzleStepSet) Strategy() string {
+func (s puzzleStepSet) Strategy() app.PuzzleStrategy {
 	return s.strategy
 }
 
@@ -29,88 +24,104 @@ func (s puzzleStepSet) Description() string {
 	return out
 }
 
-type puzzleStepNakedPairOrTriple struct {
+type puzzleStepNakedStrategy struct {
 	points             []app.Point
 	set                []uint8
 	removalsCandidates []app.Point
 }
 
-func (s puzzleStepNakedPairOrTriple) Strategy() string {
-	if len(s.points) == 2 {
-		return "Naked Pair"
-	} else {
-		return "Naked Triple"
+func (s puzzleStepNakedStrategy) Strategy() app.PuzzleStrategy {
+	switch len(s.points) {
+	case 2:
+		return app.StrategyNakedPair
+	case 3:
+		return app.StrategyNakedTriple
+	case 4:
+		return app.StrategyNakedQuad
+	default:
+		return app.StrategyUnknown
 	}
 }
 
-func (s puzzleStepNakedPairOrTriple) Description() string {
+func (s puzzleStepNakedStrategy) Description() string {
 	return fmt.Sprintf("has candidates %v in points %s and remove candidates in points %v", s.set, s.points, s.removalsCandidates)
 }
 
-type puzzleStepHiddenPairOrTriple struct {
+type puzzleStepHiddenStrategy struct {
 	points []app.Point
 	set    []uint8
 }
 
-func (s puzzleStepHiddenPairOrTriple) Strategy() string {
-	if len(s.set) == 2 {
-		return "Hidden Pair"
-	} else {
-		return "Hidden Triple"
+func (s puzzleStepHiddenStrategy) Strategy() app.PuzzleStrategy {
+	switch len(s.set) {
+	case 2:
+		return app.StrategyHiddenPair
+	case 3:
+		return app.StrategyHiddenTriple
+	case 4:
+		return app.StrategyHiddenQuad
+	default:
+		return app.StrategyUnknown
 	}
 }
 
-func (s puzzleStepHiddenPairOrTriple) Description() string {
+func (s puzzleStepHiddenStrategy) Description() string {
 	return fmt.Sprintf("has candidates %v in points %s", s.set, s.points)
 }
 
-type puzzleStepPointingPairOrTriple struct {
+type puzzleStepPointingStrategy struct {
 	points             []app.Point
 	value              uint8
 	removalsCandidates []app.Point
 }
 
-func (s puzzleStepPointingPairOrTriple) Strategy() string {
-	if len(s.points) == 2 {
-		return "Pointing Pair"
-	} else {
-		return "Pointing Triple"
+func (s puzzleStepPointingStrategy) Strategy() app.PuzzleStrategy {
+	switch len(s.points) {
+	case 2:
+		return app.StrategyPointingPair
+	case 3:
+		return app.StrategyPointingTriple
+	default:
+		return app.StrategyUnknown
 	}
 }
 
-func (s puzzleStepPointingPairOrTriple) Description() string {
+func (s puzzleStepPointingStrategy) Description() string {
 	return fmt.Sprintf("has candidate %d in points %v and remove candidates in points %v", s.value, s.points, s.removalsCandidates)
 }
 
-type puzzleStepBoxLineReductionPairOrTriple struct {
+type puzzleStepBoxLineReductionStrategy struct {
 	points             []app.Point
 	value              uint8
 	removalsCandidates []app.Point
 }
 
-func (s puzzleStepBoxLineReductionPairOrTriple) Strategy() string {
-	if len(s.points) == 2 {
-		return "Box/Line Reduction Pair"
-	} else {
-		return "Box/Line Reduction Triple"
+func (s puzzleStepBoxLineReductionStrategy) Strategy() app.PuzzleStrategy {
+	switch len(s.points) {
+	case 2:
+		return app.StrategyBoxLineReductionPair
+	case 3:
+		return app.StrategyBoxLineReductionTriple
+	default:
+		return app.StrategyUnknown
 	}
 }
 
-func (s puzzleStepBoxLineReductionPairOrTriple) Description() string {
+func (s puzzleStepBoxLineReductionStrategy) Description() string {
 	return fmt.Sprintf("has candidate %d in points %v and remove candidates in points %v", s.value, s.points, s.removalsCandidates)
 }
 
-type puzzleStepXWing struct {
+type puzzleStepXWingStrategy struct {
 	pairA              []app.Point
 	pairB              []app.Point
 	value              uint8
 	removalsCandidates []app.Point
 }
 
-func (s puzzleStepXWing) Strategy() string {
-	return "X-Wing"
+func (s puzzleStepXWingStrategy) Strategy() app.PuzzleStrategy {
+	return app.StrategyXWing
 }
 
-func (s puzzleStepXWing) Description() string {
+func (s puzzleStepXWingStrategy) Description() string {
 	return fmt.Sprintf("has candidate %d in pairs %v and %v; remove candidates in points %v", s.value, s.pairA, s.pairB, s.removalsCandidates)
 }

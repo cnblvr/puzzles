@@ -16,8 +16,8 @@ func init() {
 }
 
 type websocketMakeStepRequest struct {
-	GameID uuid.UUID      `json:"game_id"`
-	Step   app.PuzzleStep `json:"step"`
+	GameID uuid.UUID          `json:"game_id"`
+	Step   app.PuzzleUserStep `json:"step"`
 }
 
 func (websocketMakeStepRequest) Method() string {

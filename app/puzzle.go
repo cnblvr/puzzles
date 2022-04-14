@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+//go:generate stringer -type=PuzzleStrategy -linecomment -trimprefix Strategy -output puzzle_strategy_string.go
+
 type PuzzleRepository interface {
 	// Errors: ErrorPuzzlePoolEmpty, ErrorPuzzleNotFound, unknown.
 	CreateRandomPuzzleGame(ctx context.Context, params CreateRandomPuzzleGameParams) (*Puzzle, *PuzzleGame, error)
@@ -43,7 +45,7 @@ type CreatePuzzleParams struct {
 
 type PuzzleAssistant interface {
 	String() string
-	//Type() PuzzleType
+	Type() PuzzleType
 	//GetCandidates(ctx context.Context, clues string) string
 	//FindUserErrors(ctx context.Context, userState string) []Point
 	//FindUserCandidatesErrors(ctx context.Context, state string, stateCandidates string) string
@@ -52,15 +54,41 @@ type PuzzleAssistant interface {
 
 type PuzzleGenerator interface {
 	String() string
+	Type() PuzzleType
 	SwapLines(dir DirectionType, a, b int) error
 	SwapBigLines(dir DirectionType, a, b int) error
 	Rotate(r RotationType) error
 	Reflect(r ReflectionType) error
 	SwapDigits(a, b uint8) error
-	//Type() PuzzleType
+	Solve(candidatesIn string, chanSteps chan<- PuzzleStep) (changed bool, candidatesOut string, err error)
+	SolveOneStep(candidatesIn string) (candidatesOut string, step PuzzleStep, err error)
 	//GenerateSolution(ctx context.Context, seed int64, generatedSolutions chan<- GeneratedPuzzle)
 	//GenerateClues(ctx context.Context, seed int64, generatedSolution GeneratedPuzzle, generated chan<- GeneratedPuzzle)
 }
+
+type PuzzleStep interface {
+	Strategy() PuzzleStrategy
+	Description() string
+}
+
+type PuzzleStrategy uint64
+
+const (
+	StrategyNakedSingle            PuzzleStrategy = 1 << iota // Naked Single
+	StrategyNakedPair                                         // Naked Pair
+	StrategyNakedTriple                                       // Naked Triple
+	StrategyNakedQuad                                         // Naked Quad
+	StrategyHiddenSingle                                      // Hidden Single
+	StrategyHiddenPair                                        // Hidden Pair
+	StrategyHiddenTriple                                      // Hidden Triple
+	StrategyHiddenQuad                                        // Hidden Quad
+	StrategyPointingPair                                      // Pointing Pair
+	StrategyPointingTriple                                    // Pointing Triple
+	StrategyBoxLineReductionPair                              // Box/Line Reduction Pair
+	StrategyBoxLineReductionTriple                            // Box/Line Reduction Triple
+	StrategyXWing                                             // X-Wing
+	StrategyUnknown                PuzzleStrategy = 0
+)
 
 type RotationType uint8
 
@@ -132,24 +160,24 @@ func (g *PuzzleGame) ValidateSession(session *Session) error {
 	return nil
 }
 
-type PuzzleStep struct {
-	Type  StepType `json:"type"`
-	Point Point    `json:"point"`
-	Digit int8     `json:"digit"`
+type PuzzleUserStep struct {
+	Type  UserStepType `json:"type"`
+	Point Point        `json:"point"`
+	Digit int8         `json:"digit"`
 }
 
-type StepType string
+type UserStepType string
 
 const (
-	StepSetDigit        StepType = "set_digit"
-	StepDeleteDigit     StepType = "del_digit"
-	StepSetCandidate    StepType = "set_cand"
-	StepDeleteCandidate StepType = "del_cand"
+	UserStepSetDigit        UserStepType = "set_digit"
+	UserStepDeleteDigit     UserStepType = "del_digit"
+	UserStepSetCandidate    UserStepType = "set_cand"
+	UserStepDeleteCandidate UserStepType = "del_cand"
 )
 
-func (t StepType) Validate() error {
+func (t UserStepType) Validate() error {
 	switch t {
-	case StepSetDigit, StepDeleteDigit, StepSetCandidate, StepDeleteCandidate:
+	case UserStepSetDigit, UserStepDeleteDigit, UserStepSetCandidate, UserStepDeleteCandidate:
 	default:
 		return errors.Errorf("unknown step type")
 	}
@@ -179,13 +207,16 @@ func (t PuzzleType) String() string {
 	return string(t)
 }
 
-type PuzzleLevel string
+type PuzzleLevel uint8
 
 const (
-	PuzzleLevelEasy    PuzzleLevel = "easy"
-	PuzzleLevelMedium  PuzzleLevel = "medium"
-	PuzzleLevelHard    PuzzleLevel = "hard"
-	DefaultPuzzleLevel             = PuzzleLevelMedium
+	PuzzleLevelEasy PuzzleLevel = iota + 1
+	PuzzleLevelNormal
+	PuzzleLevelHard
+	PuzzleLevelHarder
+	PuzzleLevelInsane
+	PuzzleLevelDemon
+	DefaultPuzzleLevel = PuzzleLevelNormal
 )
 
 func (l PuzzleLevel) String() string {

@@ -25,6 +25,42 @@ func newPuzzleCandidates(fill bool) puzzleCandidates {
 	return candidates
 }
 
+func (c puzzleCandidates) encode() string {
+	out := make(map[string][]int8)
+	c.forEach(func(point app.Point, candidates cellCandidates, _ *bool) {
+		if candidates.len() == 0 {
+			return
+		}
+		out[point.String()] = candidates.sliceInt8()
+	})
+	bts, _ := json.Marshal(out)
+	return string(bts)
+}
+
+func decodeCandidates(s string) (puzzleCandidates, error) {
+	in := make(map[string][]uint8)
+	if err := json.Unmarshal([]byte(s), &in); err != nil {
+		return puzzleCandidates{}, err
+	}
+	c := newPuzzleCandidates(false)
+	for pointStr, candidates := range in {
+		point, err := app.PointFromString(pointStr)
+		if err != nil {
+			return puzzleCandidates{}, errors.Wrapf(err, "failed to parse point '%s'", pointStr)
+		}
+		if point.Row >= size || point.Col >= size {
+			return puzzleCandidates{}, errors.Errorf("failed to parse point '%s': invalid format", pointStr)
+		}
+		for _, candidate := range candidates {
+			if candidate < 1 || size < candidate {
+				return puzzleCandidates{}, errors.Errorf("failed to parse candidate '%d': invalid", candidate)
+			}
+		}
+		c[point.Row][point.Col].add(candidates...)
+	}
+	return c, nil
+}
+
 func (p puzzle) findSimpleCandidates() puzzleCandidates {
 	candidates := newPuzzleCandidates(true)
 	p.forEach(func(point app.Point, val uint8, _ *bool) {
@@ -41,6 +77,14 @@ func (p puzzle) findSimpleCandidates() puzzleCandidates {
 		}
 	})
 	return candidates
+}
+
+func (p puzzle) optimizeCandidates(c puzzleCandidates) {
+	p.forEach(func(point app.Point, val uint8, _ *bool) {
+		if val > 0 {
+			c[point.Row][point.Col] = newCellCandidatesEmpty()
+		}
+	})
 }
 
 func (c puzzleCandidates) simpleRemoveAfterSet(point app.Point, value uint8) (removals []app.Point) {

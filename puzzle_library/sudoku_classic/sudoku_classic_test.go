@@ -745,15 +745,20 @@ func TestSolve(t *testing.T) {
 				t.Fatal(err)
 			}
 			c := p.findSimpleCandidates()
-			chanSteps := make(chan puzzleStep)
+			chanSteps := make(chan app.PuzzleStep)
 			go func() {
-				changed, err := p.solve(&c, chanSteps)
+				changed, cNew, err := p.Solve(c.encode(), chanSteps)
 				if err != nil {
 					t.Error(err)
 					return
 				}
 				if !changed {
 					t.Errorf("solve() is not helped")
+					return
+				}
+				c, err = decodeCandidates(cNew)
+				if err != nil {
+					t.Error(err)
 					return
 				}
 			}()
