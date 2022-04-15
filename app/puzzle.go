@@ -47,6 +47,8 @@ type CreatePuzzleParams struct {
 type PuzzleAssistant interface {
 	String() string
 	Type() PuzzleType
+	GetWrongPoints() []Point
+	GetWrongCandidates(candidates string) (string, error)
 	//GetCandidates(ctx context.Context, clues string) string
 	//FindUserErrors(ctx context.Context, userState string) []Point
 	//FindUserCandidatesErrors(ctx context.Context, state string, stateCandidates string) string
@@ -56,6 +58,7 @@ type PuzzleAssistant interface {
 type PuzzleGenerator interface {
 	String() string
 	Type() PuzzleType
+	GetWrongPoints() []Point
 	SwapLines(dir DirectionType, a, b int) error
 	SwapBigLines(dir DirectionType, a, b int) error
 	Rotate(r RotationType) error
@@ -63,7 +66,6 @@ type PuzzleGenerator interface {
 	SwapDigits(a, b uint8) error
 	Solve(candidatesIn string, chanSteps chan<- PuzzleStep, strategies PuzzleStrategy) (changed bool, candidatesOut string, err error)
 	SolveOneStep(candidatesIn string, strategies PuzzleStrategy) (candidatesChanges string, step PuzzleStep, err error)
-	IsCorrectPuzzle() bool
 	GenerateLogic(seed int64, strategies PuzzleStrategy) (PuzzleStrategy, error)
 	GenerateRandom(seed int64) error
 	//GenerateSolution(ctx context.Context, seed int64, generatedSolutions chan<- GeneratedPuzzle)

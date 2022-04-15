@@ -754,6 +754,31 @@ func (c puzzleCandidates) strategyXWing() (pairA, pairB []app.Point, value uint8
 	return
 }
 
+func (p puzzle) GetWrongCandidates(candidates string) (string, error) {
+	c, err := decodeCandidates(candidates)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+	wrongs := newPuzzleCandidates(false)
+	c.forEach(func(point1 app.Point, candidates1 cellCandidates, _ *bool) {
+		if p[point1.Row][point1.Col] > 0 {
+			return
+		}
+		for candidate := range candidates1 {
+			findErrs := func(_ app.Point, value2 uint8, stop2 *bool) {
+				if candidate == value2 {
+					wrongs[point1.Row][point1.Col].add(candidate)
+					*stop2 = true
+				}
+			}
+			p.forEachInRow(point1.Row, findErrs, point1.Col)
+			p.forEachInCol(point1.Col, findErrs, point1.Row)
+			p.forEachInBox(point1, findErrs, point1)
+		}
+	})
+	return wrongs.encode(), nil
+}
+
 func (c puzzleCandidates) in(point app.Point) []uint8 {
 	return c[point.Row][point.Col].slice()
 }

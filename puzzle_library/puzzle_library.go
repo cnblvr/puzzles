@@ -2,22 +2,22 @@ package puzzle_library
 
 import (
 	"github.com/cnblvr/puzzles/app"
-	"github.com/cnblvr/puzzles/puzzle_library/sudoku_classic_old"
+	"github.com/cnblvr/puzzles/puzzle_library/sudoku_classic"
 )
 
-func GetGenerator(typ app.PuzzleType) (app.PuzzleGenerator, error) {
+func GetGenerator(typ app.PuzzleType, puzzle string) (app.PuzzleGenerator, error) {
 	switch typ {
 	case app.PuzzleSudokuClassic:
-		return sudoku_classic_old.SudokuClassic{}, nil
+		return sudoku_classic.ParseGenerator(puzzle)
 	default:
 		return nil, app.ErrorPuzzleTypeUnknown
 	}
 }
 
-func GetAssistant(typ app.PuzzleType) (app.PuzzleAssistant, error) {
+func GetAssistant(typ app.PuzzleType, puzzle string) (app.PuzzleAssistant, error) {
 	switch typ {
 	case app.PuzzleSudokuClassic:
-		return sudoku_classic_old.SudokuClassic{}, nil
+		return sudoku_classic.ParseAssistant(puzzle)
 	default:
 		return nil, app.ErrorPuzzleTypeUnknown
 	}

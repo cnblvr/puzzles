@@ -516,7 +516,7 @@ func (p *puzzle) GenerateLogic(seed int64, strategies app.PuzzleStrategy) (app.P
 			revert()
 			continue
 		}
-		if !solution.IsCorrectPuzzle() {
+		if len(solution.GetWrongPoints()) > 0 {
 			revert()
 			continue
 		}
@@ -603,25 +603,22 @@ func (p puzzle) forEachInBox(point app.Point, fn func(point app.Point, val uint8
 	}
 }
 
-func (p puzzle) IsCorrectPuzzle() (isCorrect bool) {
-	isCorrect = true
-	p.forEach(func(point1 app.Point, val1 uint8, stop1 *bool) {
-		fnCheck := func(_ app.Point, val2 uint8, stop2 *bool) {
+func (p puzzle) GetWrongPoints() (points []app.Point) {
+	pointsUnique := make(map[app.Point]struct{})
+	p.forEach(func(point1 app.Point, val1 uint8, _ *bool) {
+		fnCheck := func(point2 app.Point, val2 uint8, _ *bool) {
 			if val1 == 0 || val1 == val2 {
-				isCorrect = false
-				*stop1, *stop2 = true, true
+				pointsUnique[point1] = struct{}{}
+				pointsUnique[point2] = struct{}{}
 			}
 		}
 		p.forEachInRow(point1.Row, fnCheck, point1.Col)
-		if !isCorrect {
-			return
-		}
 		p.forEachInCol(point1.Col, fnCheck, point1.Row)
-		if !isCorrect {
-			return
-		}
 		p.forEachInBox(point1, fnCheck, point1)
 	})
+	for point := range pointsUnique {
+		points = append(points, point)
+	}
 	return
 }
 

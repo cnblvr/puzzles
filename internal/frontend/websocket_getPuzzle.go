@@ -47,7 +47,7 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 		resp.Candidates = json.RawMessage(puzzle.Candidates)
 	}
 
-	assistant, err := puzzle_library.GetAssistant(puzzle.Type)
+	statePuzzle, err := puzzle_library.GetAssistant(puzzle.Type, resp.StatePuzzle)
 	if err != nil {
 		return websocketMakeStepResponse{}, fmt.Errorf("internal server error")
 	}
@@ -62,16 +62,12 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 	} else {
 		resp.StatePuzzle = game.State
 		resp.StateCandidates = json.RawMessage(game.StateCandidates)
-
-		uniqueErrs := make(map[app.Point]struct{})
-		for _, p := range assistant.FindUserErrors(ctx, resp.StatePuzzle) {
-			uniqueErrs[p] = struct{}{}
+		resp.Errors = statePuzzle.GetWrongPoints()
+		wrongCandidates, err := statePuzzle.GetWrongCandidates(game.StateCandidates)
+		if err != nil {
+			return websocketGetPuzzleResponse{}, fmt.Errorf("bad request")
 		}
-		for p := range uniqueErrs {
-			resp.Errors = append(resp.Errors, p)
-		}
-
-		resp.ErrorsCandidates = json.RawMessage(assistant.FindUserCandidatesErrors(ctx, game.State, game.StateCandidates))
+		resp.ErrorsCandidates = json.RawMessage(wrongCandidates)
 	}
 
 	return resp, nil

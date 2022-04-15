@@ -587,8 +587,8 @@ func TestPuzzle_GenerateLogic(t *testing.T) {
 		if _, _, err := p.Solve("", nil, strategies); err != nil {
 			t.Fatal(err)
 		}
-		if !p.IsCorrectPuzzle() {
-			t.Error("is not correct")
+		if wrongs := p.GetWrongPoints(); len(wrongs) > 0 {
+			t.Errorf("is not solved. wrongs: %v", wrongs)
 		}
 	}
 }
