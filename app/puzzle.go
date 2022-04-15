@@ -10,6 +10,7 @@ import (
 )
 
 //go:generate stringer -type=PuzzleStrategy -linecomment -trimprefix Strategy -output puzzle_strategy_string.go
+//go:generate stringer -type=PuzzleLevel -linecomment -trimprefix PuzzleLevel -output puzzle_level_string.go
 
 type PuzzleRepository interface {
 	// Errors: ErrorPuzzlePoolEmpty, ErrorPuzzleNotFound, unknown.
@@ -60,14 +61,18 @@ type PuzzleGenerator interface {
 	Rotate(r RotationType) error
 	Reflect(r ReflectionType) error
 	SwapDigits(a, b uint8) error
-	Solve(candidatesIn string, chanSteps chan<- PuzzleStep) (changed bool, candidatesOut string, err error)
-	SolveOneStep(candidatesIn string) (candidatesOut string, step PuzzleStep, err error)
+	Solve(candidatesIn string, chanSteps chan<- PuzzleStep, strategies PuzzleStrategy) (changed bool, candidatesOut string, err error)
+	SolveOneStep(candidatesIn string, strategies PuzzleStrategy) (candidatesChanges string, step PuzzleStep, err error)
+	IsCorrectPuzzle() bool
+	GenerateLogic(seed int64, strategies PuzzleStrategy) (PuzzleStrategy, error)
+	GenerateRandom(seed int64) error
 	//GenerateSolution(ctx context.Context, seed int64, generatedSolutions chan<- GeneratedPuzzle)
 	//GenerateClues(ctx context.Context, seed int64, generatedSolution GeneratedPuzzle, generated chan<- GeneratedPuzzle)
 }
 
 type PuzzleStep interface {
 	Strategy() PuzzleStrategy
+	CandidateChanges() string
 	Description() string
 }
 
@@ -88,7 +93,38 @@ const (
 	StrategyBoxLineReductionTriple                            // Box/Line Reduction Triple
 	StrategyXWing                                             // X-Wing
 	StrategyUnknown                PuzzleStrategy = 0
+
+	levelEasyStrategies   = StrategyNakedSingle | StrategyHiddenSingle
+	levelNormalStrategies = StrategyNakedPair | StrategyNakedTriple | StrategyHiddenPair | StrategyHiddenTriple
+	levelHardStrategies   = StrategyNakedQuad | StrategyHiddenQuad | StrategyPointingPair | StrategyPointingTriple |
+		StrategyBoxLineReductionPair | StrategyBoxLineReductionTriple
+	levelHarderStrategies = StrategyXWing // TODO
+	levelInsaneStrategies = 0             // TODO
+	levelDemonStrategies  = 0             // TODO
 )
+
+func (i PuzzleStrategy) Has(s PuzzleStrategy) bool {
+	return i&s > 0
+}
+
+func (i PuzzleStrategy) Level() PuzzleLevel {
+	switch {
+	case i&levelDemonStrategies > 0:
+		return PuzzleLevelDemon
+	case i&levelInsaneStrategies > 0:
+		return PuzzleLevelInsane
+	case i&levelHarderStrategies > 0:
+		return PuzzleLevelHarder
+	case i&levelHardStrategies > 0:
+		return PuzzleLevelHard
+	case i&levelNormalStrategies > 0:
+		return PuzzleLevelNormal
+	case i&levelEasyStrategies > 0:
+		return PuzzleLevelEasy
+	default:
+		return 0
+	}
+}
 
 type RotationType uint8
 
@@ -216,11 +252,29 @@ const (
 	PuzzleLevelHarder
 	PuzzleLevelInsane
 	PuzzleLevelDemon
+	PuzzleLevelCustom
 	DefaultPuzzleLevel = PuzzleLevelNormal
 )
 
-func (l PuzzleLevel) String() string {
-	return string(l)
+func (l PuzzleLevel) Strategies() PuzzleStrategy {
+	switch l {
+	case PuzzleLevelEasy:
+		return levelEasyStrategies
+	case PuzzleLevelNormal:
+		return levelEasyStrategies | levelNormalStrategies
+	case PuzzleLevelHard:
+		return levelEasyStrategies | levelNormalStrategies | levelHardStrategies
+	case PuzzleLevelHarder:
+		return levelEasyStrategies | levelNormalStrategies | levelHardStrategies | levelHarderStrategies
+	case PuzzleLevelInsane:
+		return levelEasyStrategies | levelNormalStrategies | levelHardStrategies | levelHarderStrategies |
+			levelInsaneStrategies
+	case PuzzleLevelDemon:
+		return levelEasyStrategies | levelNormalStrategies | levelHardStrategies | levelHarderStrategies |
+			levelInsaneStrategies | levelDemonStrategies
+	default:
+		return 0
+	}
 }
 
 type Point struct {

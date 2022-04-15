@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
@@ -31,6 +32,15 @@ func parse(str string) (*puzzle, error) {
 		}
 	}
 	return &p, nil
+}
+
+func (p puzzle) clone() (out puzzle) {
+	for row := 0; row < size; row++ {
+		for col := 0; col < size; col++ {
+			out[row][col] = p[row][col]
+		}
+	}
+	return
 }
 
 // ParseAssistant parses str into an interface that can be used to work with the
@@ -253,21 +263,7 @@ func (p *puzzle) SwapDigits(a, b uint8) error {
 	return nil
 }
 
-func (p *puzzle) Solve(candidatesIn string, chanSteps chan<- app.PuzzleStep) (changed bool, candidatesOut string, err error) {
-	var candidates puzzleCandidates
-	if candidatesIn == "" {
-		candidates = p.findSimpleCandidates()
-	} else {
-		candidates, err = decodeCandidates(candidatesIn)
-		if err != nil {
-			return
-		}
-		p.optimizeCandidates(candidates)
-	}
-	defer func(candidates puzzleCandidates) {
-		candidatesOut = candidates.encode()
-	}(candidates)
-
+func (p *puzzle) solve(candidates puzzleCandidates, chanSteps chan<- app.PuzzleStep, strategies app.PuzzleStrategy) (changed bool, candidatesOut string, err error) {
 	changedOnIteration := true
 	if chanSteps != nil {
 		defer close(chanSteps)
@@ -276,7 +272,8 @@ func (p *puzzle) Solve(candidatesIn string, chanSteps chan<- app.PuzzleStep) (ch
 		changedOnIteration = false
 
 		var step app.PuzzleStep
-		changedOnIteration, candidates, step, err = p.solveOneStep(candidates)
+		candidatesBase := candidates.clone()
+		changedOnIteration, step, err = p.solveOneStep(candidates, candidatesBase, strategies)
 		if err != nil {
 			return
 		}
@@ -290,7 +287,7 @@ func (p *puzzle) Solve(candidatesIn string, chanSteps chan<- app.PuzzleStep) (ch
 	return
 }
 
-func (p *puzzle) SolveOneStep(candidatesIn string) (candidatesOut string, step app.PuzzleStep, err error) {
+func (p *puzzle) Solve(candidatesIn string, chanSteps chan<- app.PuzzleStep, strategies app.PuzzleStrategy) (changed bool, candidatesOut string, err error) {
 	var candidates puzzleCandidates
 	if candidatesIn == "" {
 		candidates = p.findSimpleCandidates()
@@ -305,160 +302,230 @@ func (p *puzzle) SolveOneStep(candidatesIn string) (candidatesOut string, step a
 		candidatesOut = candidates.encode()
 	}(candidates)
 
-	_, candidates, step, err = p.solveOneStep(candidates)
+	return p.solve(candidates, chanSteps, strategies)
+}
+
+func (p *puzzle) SolveOneStep(candidatesIn string, strategies app.PuzzleStrategy) (candidatesChanges string, step app.PuzzleStep, err error) {
+	var candidates, candidatesBase puzzleCandidates
+	if candidatesIn == "" {
+		candidates = p.findSimpleCandidates()
+	} else {
+		candidates, err = decodeCandidates(candidatesIn)
+		if err != nil {
+			return
+		}
+		p.optimizeCandidates(candidates)
+	}
+	candidatesBase = candidates.clone()
+	defer func(candidates puzzleCandidates) {
+		candidatesChanges = candidates.encodeOnlyChanges(candidatesBase)
+	}(candidates)
+
+	_, step, err = p.solveOneStep(candidates, candidatesBase, strategies)
 	if err != nil {
 		return
 	}
+
 	return
 }
 
-func (p *puzzle) solveOneStep(candidates puzzleCandidates) (changed bool, candidatesOut puzzleCandidates, step app.PuzzleStep, err error) {
-	makeStep := func(s app.PuzzleStep) {
+func (p *puzzle) solveOneStep(candidates puzzleCandidates, candidatesBase puzzleCandidates, strategies app.PuzzleStrategy) (changed bool, step puzzleStepSetter, err error) {
+	makeStep := func(s puzzleStepSetter) {
 		switch s := s.(type) {
-		case puzzleStepSet:
+		case *puzzleStepSet:
 			p[s.point.Row][s.point.Col] = s.value
-			s.removalsCandidates = candidates.simpleRemoveAfterSet(s.point, s.value)
+			candidates.simpleRemoveAfterSet(s.point, s.value)
 		}
+		s.setCandidateChanges(candidates.encodeOnlyChanges(candidatesBase))
 		step = s
 		changed = true
 	}
-	defer func() {
-		candidatesOut = candidates
-	}()
 
 	// strategy Naked Single
-	p.forEach(func(point1 app.Point, val1 uint8, stop1 *bool) {
-		if val1 > 0 {
-			return
-		}
-		candidates1 := candidates[point1.Row][point1.Col]
-		var candidate uint8
-		switch count := candidates1.len(); {
-		case count > 1:
-			return
-		case count == 0:
-			err = errors.Errorf("candidates in %s is emtpy", point1.String())
-			*stop1 = true
-			return
-		case count == 1:
-			candidate = candidates1.slice()[0]
-		}
-		makeStep(puzzleStepSet{
-			strategy: app.StrategyNakedSingle,
-			point:    point1,
-			value:    candidate,
-		})
-		*stop1 = true
-		return
-	})
-	if changed || err != nil {
-		return
-	}
-
-	// strategy Hidden Single
-	p.forEach(func(point1 app.Point, val1 uint8, stop1 *bool) {
-		if val1 > 0 {
-			return
-		}
-		for _, candidate := range candidates.in(point1) {
-			isHiddenSingle := uint8(0b111)
-			candidates.forEachInRow(point1.Row, func(_ app.Point, candidates2 cellCandidates, stop2 *bool) {
-				if candidates2.has(candidate) {
-					isHiddenSingle &= 0b011
-					*stop2 = true
-				}
-			}, point1.Col)
-			candidates.forEachInCol(point1.Col, func(_ app.Point, candidates2 cellCandidates, stop2 *bool) {
-				if candidates2.has(candidate) {
-					isHiddenSingle &= 0b101
-					*stop2 = true
-				}
-			}, point1.Row)
-			candidates.forEachInBox(point1, func(_ app.Point, candidates2 cellCandidates, stop2 *bool) {
-				if candidates2.has(candidate) {
-					isHiddenSingle &= 0b110
-					*stop2 = true
-				}
-			}, point1)
-			if isHiddenSingle == 0 {
-				continue
+	if strategies.Has(app.StrategyNakedSingle) {
+		p.forEach(func(point1 app.Point, val1 uint8, stop1 *bool) {
+			if val1 > 0 {
+				return
 			}
-			makeStep(puzzleStepSet{
-				strategy: app.StrategyHiddenSingle,
+			candidates1 := candidates[point1.Row][point1.Col]
+			var candidate uint8
+			switch count := candidates1.len(); {
+			case count > 1:
+				return
+			case count == 0:
+				err = errors.Errorf("candidates in %s is emtpy", point1.String())
+				*stop1 = true
+				return
+			case count == 1:
+				candidate = candidates1.slice()[0]
+			}
+			makeStep(&puzzleStepSet{
+				strategy: app.StrategyNakedSingle,
 				point:    point1,
 				value:    candidate,
 			})
 			*stop1 = true
 			return
+		})
+		if changed || err != nil {
+			return
 		}
-	})
-	if changed {
-		return
+	}
+
+	// strategy Hidden Single
+	if strategies.Has(app.StrategyHiddenSingle) {
+		p.forEach(func(point1 app.Point, val1 uint8, stop1 *bool) {
+			if val1 > 0 {
+				return
+			}
+			for _, candidate := range candidates.in(point1) {
+				isHiddenSingle := uint8(0b111)
+				candidates.forEachInRow(point1.Row, func(_ app.Point, candidates2 cellCandidates, stop2 *bool) {
+					if candidates2.has(candidate) {
+						isHiddenSingle &= 0b011
+						*stop2 = true
+					}
+				}, point1.Col)
+				candidates.forEachInCol(point1.Col, func(_ app.Point, candidates2 cellCandidates, stop2 *bool) {
+					if candidates2.has(candidate) {
+						isHiddenSingle &= 0b101
+						*stop2 = true
+					}
+				}, point1.Row)
+				candidates.forEachInBox(point1, func(_ app.Point, candidates2 cellCandidates, stop2 *bool) {
+					if candidates2.has(candidate) {
+						isHiddenSingle &= 0b110
+						*stop2 = true
+					}
+				}, point1)
+				if isHiddenSingle == 0 {
+					continue
+				}
+				makeStep(&puzzleStepSet{
+					strategy: app.StrategyHiddenSingle,
+					point:    point1,
+					value:    candidate,
+				})
+				*stop1 = true
+				return
+			}
+		})
+		if changed {
+			return
+		}
 	}
 
 	// strategy Naked Pair
-	if points, pair, removals, ok := candidates.strategyNakedPair(); ok {
-		makeStep(puzzleStepNakedStrategy{
-			points:             points,
-			set:                pair,
-			removalsCandidates: removals,
-		})
-		return
+	if strategies.Has(app.StrategyNakedPair) {
+		if points, pair, ok := candidates.strategyNakedPair(); ok {
+			makeStep(&puzzleStepNakedStrategy{
+				points: points,
+				set:    pair,
+			})
+			return
+		}
 	}
 	// strategy Naked Triple
-	if points, triple, removals, ok := candidates.strategyNakedTriple(); ok {
-		makeStep(puzzleStepNakedStrategy{
-			points:             points,
-			set:                triple,
-			removalsCandidates: removals,
-		})
-		return
+	if strategies.Has(app.StrategyNakedTriple) {
+		if points, triple, ok := candidates.strategyNakedTriple(); ok {
+			makeStep(&puzzleStepNakedStrategy{
+				points: points,
+				set:    triple,
+			})
+			return
+		}
 	}
 	// strategy Hidden Pair
-	if points, pair, ok := candidates.strategyHiddenPair(); ok {
-		makeStep(puzzleStepHiddenStrategy{
-			points: points,
-			set:    pair,
-		})
-		return
+	if strategies.Has(app.StrategyHiddenPair) {
+		if points, pair, ok := candidates.strategyHiddenPair(); ok {
+			makeStep(&puzzleStepHiddenStrategy{
+				points: points,
+				set:    pair,
+			})
+			return
+		}
 	}
 	// strategy Hidden Triple
-	if points, triple, ok := candidates.strategyHiddenTriple(); ok {
-		makeStep(puzzleStepHiddenStrategy{
-			points: points,
-			set:    triple,
-		})
-		return
+	if strategies.Has(app.StrategyHiddenTriple) {
+		if points, triple, ok := candidates.strategyHiddenTriple(); ok {
+			makeStep(&puzzleStepHiddenStrategy{
+				points: points,
+				set:    triple,
+			})
+			return
+		}
 	}
 	// strategy Pointing Pair or Triple
-	if points, value, removals, ok := candidates.strategyPointingPairTriple(); ok {
-		makeStep(puzzleStepPointingStrategy{
-			points:             points,
-			value:              value,
-			removalsCandidates: removals,
-		})
-		return
+	if strategies.Has(app.StrategyPointingPair) || strategies.Has(app.StrategyPointingTriple) {
+		if points, value, ok := candidates.strategyPointingPairTriple(); ok {
+			makeStep(&puzzleStepPointingStrategy{
+				points: points,
+				value:  value,
+			})
+			return
+		}
 	}
 	// strategy Box Line Reduction Pair or Triple
-	if points, value, removals, ok := candidates.strategyBoxLineReductionPairTriple(); ok {
-		makeStep(puzzleStepBoxLineReductionStrategy{
-			points:             points,
-			value:              value,
-			removalsCandidates: removals,
-		})
-		return
+	if strategies.Has(app.StrategyBoxLineReductionPair) || strategies.Has(app.StrategyBoxLineReductionTriple) {
+		if points, value, ok := candidates.strategyBoxLineReductionPairTriple(); ok {
+			makeStep(&puzzleStepBoxLineReductionStrategy{
+				points: points,
+				value:  value,
+			})
+			return
+		}
 	}
 	// strategy X-Wing
-	if pairA, pairB, value, removals, ok := candidates.strategyXWing(); ok {
-		makeStep(puzzleStepXWingStrategy{
-			pairA:              pairA,
-			pairB:              pairB,
-			value:              value,
-			removalsCandidates: removals,
-		})
-		return
+	if strategies.Has(app.StrategyXWing) {
+		if pairA, pairB, value, ok := candidates.strategyXWing(); ok {
+			makeStep(&puzzleStepXWingStrategy{
+				pairA: pairA,
+				pairB: pairB,
+				value: value,
+			})
+			return
+		}
 	}
 	return
+}
+
+func (p *puzzle) GenerateLogic(seed int64, strategies app.PuzzleStrategy) (app.PuzzleStrategy, error) {
+	rnd := rand.New(rand.NewSource(seed))
+	givenStrategies := app.StrategyUnknown
+	for _, point := range getRandomPoints(rnd) {
+		digit := p[point.Row][point.Col]
+		p[point.Row][point.Col] = 0
+		revert := func() {
+			p[point.Row][point.Col] = digit
+		}
+		candidates := p.findSimpleCandidates()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		var err error
+		chanSteps := make(chan app.PuzzleStep)
+		solution := p.clone()
+		go func() {
+			defer wg.Done()
+			_, _, err = solution.solve(candidates, chanSteps, strategies)
+		}()
+		for step := range chanSteps {
+			givenStrategies |= step.Strategy()
+		}
+		wg.Wait()
+		if err != nil {
+			revert()
+			continue
+		}
+		if !solution.IsCorrectPuzzle() {
+			revert()
+			continue
+		}
+	}
+	return givenStrategies, nil
+}
+
+func (p puzzle) GenerateRandom(seed int64) error {
+	return errors.Errorf("not implemented")
 }
 
 func (p puzzle) forEach(fn func(point app.Point, val uint8, stop *bool), excludePoints ...app.Point) {
@@ -534,6 +601,42 @@ func (p puzzle) forEachInBox(point app.Point, fn func(point app.Point, val uint8
 			fn(point, p[row][col], &stop)
 		}
 	}
+}
+
+func (p puzzle) IsCorrectPuzzle() (isCorrect bool) {
+	isCorrect = true
+	p.forEach(func(point1 app.Point, val1 uint8, stop1 *bool) {
+		fnCheck := func(_ app.Point, val2 uint8, stop2 *bool) {
+			if val1 == 0 || val1 == val2 {
+				isCorrect = false
+				*stop1, *stop2 = true, true
+			}
+		}
+		p.forEachInRow(point1.Row, fnCheck, point1.Col)
+		if !isCorrect {
+			return
+		}
+		p.forEachInCol(point1.Col, fnCheck, point1.Row)
+		if !isCorrect {
+			return
+		}
+		p.forEachInBox(point1, fnCheck, point1)
+	})
+	return
+}
+
+// Get all puzzle points randomly.
+func getRandomPoints(rnd *rand.Rand) []app.Point {
+	var points []app.Point
+	for row := 0; row < 9; row++ {
+		for col := 0; col < 9; col++ {
+			points = append(points, app.Point{Row: row, Col: col})
+		}
+	}
+	rnd.Shuffle(len(points), func(i, j int) {
+		points[i], points[j] = points[j], points[i]
+	})
+	return points
 }
 
 // ASCII representation of the puzzle when debugging.

@@ -5,11 +5,28 @@ import (
 	"github.com/cnblvr/puzzles/app"
 )
 
+type puzzleStepSetter interface {
+	app.PuzzleStep
+	setCandidateChanges(string)
+}
+
+type candidateChanges struct {
+	changes string
+}
+
+func (c *candidateChanges) setCandidateChanges(s string) {
+	c.changes = s
+}
+
+func (c candidateChanges) CandidateChanges() string {
+	return c.changes
+}
+
 type puzzleStepSet struct {
-	strategy           app.PuzzleStrategy
-	point              app.Point
-	value              uint8
-	removalsCandidates []app.Point
+	candidateChanges
+	strategy app.PuzzleStrategy
+	point    app.Point
+	value    uint8
 }
 
 func (s puzzleStepSet) Strategy() app.PuzzleStrategy {
@@ -18,16 +35,13 @@ func (s puzzleStepSet) Strategy() app.PuzzleStrategy {
 
 func (s puzzleStepSet) Description() string {
 	out := fmt.Sprintf("set %d in point %s", s.value, s.point)
-	if len(s.removalsCandidates) > 0 {
-		out += fmt.Sprintf(" with removals in %v", s.removalsCandidates)
-	}
 	return out
 }
 
 type puzzleStepNakedStrategy struct {
-	points             []app.Point
-	set                []uint8
-	removalsCandidates []app.Point
+	candidateChanges
+	points []app.Point
+	set    []uint8
 }
 
 func (s puzzleStepNakedStrategy) Strategy() app.PuzzleStrategy {
@@ -44,10 +58,11 @@ func (s puzzleStepNakedStrategy) Strategy() app.PuzzleStrategy {
 }
 
 func (s puzzleStepNakedStrategy) Description() string {
-	return fmt.Sprintf("has candidates %v in points %s and remove candidates in points %v", s.set, s.points, s.removalsCandidates)
+	return fmt.Sprintf("has candidates %v in points %s", s.set, s.points)
 }
 
 type puzzleStepHiddenStrategy struct {
+	candidateChanges
 	points []app.Point
 	set    []uint8
 }
@@ -70,9 +85,9 @@ func (s puzzleStepHiddenStrategy) Description() string {
 }
 
 type puzzleStepPointingStrategy struct {
-	points             []app.Point
-	value              uint8
-	removalsCandidates []app.Point
+	candidateChanges
+	points []app.Point
+	value  uint8
 }
 
 func (s puzzleStepPointingStrategy) Strategy() app.PuzzleStrategy {
@@ -87,13 +102,13 @@ func (s puzzleStepPointingStrategy) Strategy() app.PuzzleStrategy {
 }
 
 func (s puzzleStepPointingStrategy) Description() string {
-	return fmt.Sprintf("has candidate %d in points %v and remove candidates in points %v", s.value, s.points, s.removalsCandidates)
+	return fmt.Sprintf("has candidate %d in points %v", s.value, s.points)
 }
 
 type puzzleStepBoxLineReductionStrategy struct {
-	points             []app.Point
-	value              uint8
-	removalsCandidates []app.Point
+	candidateChanges
+	points []app.Point
+	value  uint8
 }
 
 func (s puzzleStepBoxLineReductionStrategy) Strategy() app.PuzzleStrategy {
@@ -108,14 +123,14 @@ func (s puzzleStepBoxLineReductionStrategy) Strategy() app.PuzzleStrategy {
 }
 
 func (s puzzleStepBoxLineReductionStrategy) Description() string {
-	return fmt.Sprintf("has candidate %d in points %v and remove candidates in points %v", s.value, s.points, s.removalsCandidates)
+	return fmt.Sprintf("has candidate %d in points %v", s.value, s.points)
 }
 
 type puzzleStepXWingStrategy struct {
-	pairA              []app.Point
-	pairB              []app.Point
-	value              uint8
-	removalsCandidates []app.Point
+	candidateChanges
+	pairA []app.Point
+	pairB []app.Point
+	value uint8
 }
 
 func (s puzzleStepXWingStrategy) Strategy() app.PuzzleStrategy {
@@ -123,5 +138,5 @@ func (s puzzleStepXWingStrategy) Strategy() app.PuzzleStrategy {
 }
 
 func (s puzzleStepXWingStrategy) Description() string {
-	return fmt.Sprintf("has candidate %d in pairs %v and %v; remove candidates in points %v", s.value, s.pairA, s.pairB, s.removalsCandidates)
+	return fmt.Sprintf("has candidate %d in pairs %v and %v", s.value, s.pairA, s.pairB)
 }

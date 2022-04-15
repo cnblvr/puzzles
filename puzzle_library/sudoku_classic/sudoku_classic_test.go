@@ -6,6 +6,7 @@ import (
 	"github.com/cnblvr/puzzles/app"
 	"math/rand"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -568,6 +569,30 @@ func TestFindSimpleCandidates(t *testing.T) {
 	}
 }
 
+func TestPuzzle_GenerateLogic(t *testing.T) {
+	const level = app.PuzzleLevelDemon
+	strategies := level.Strategies()
+
+	for i := 0; i < 500; i++ {
+		p, seed := NewRandomSolution()
+		gotStrategies, err := p.GenerateLogic(seed, strategies)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := p.String()
+		t.Logf("want strategies = %b; got strategies = %b; clues = %d\nwant level = %s; got = %s\n%s",
+			strategies, gotStrategies, 81-strings.Count(s, "."),
+			level, gotStrategies.Level(),
+			s)
+		if _, _, err := p.Solve("", nil, strategies); err != nil {
+			t.Fatal(err)
+		}
+		if !p.IsCorrectPuzzle() {
+			t.Error("is not correct")
+		}
+	}
+}
+
 func TestSolve(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -747,7 +772,7 @@ func TestSolve(t *testing.T) {
 			c := p.findSimpleCandidates()
 			chanSteps := make(chan app.PuzzleStep)
 			go func() {
-				changed, cNew, err := p.Solve(c.encode(), chanSteps)
+				changed, cNew, err := p.Solve(c.encode(), chanSteps, app.PuzzleLevelDemon.Strategies())
 				if err != nil {
 					t.Error(err)
 					return
@@ -764,6 +789,7 @@ func TestSolve(t *testing.T) {
 			}()
 			for step := range chanSteps {
 				t.Logf("step %s: %s", step.Strategy(), step.Description())
+				t.Logf("changes: %s", step.CandidateChanges())
 			}
 			if got := p.String(); got != tt.wantP {
 				t.Errorf("solve()\ngot  = %s\nwant = %s", got, tt.wantP)
@@ -773,6 +799,8 @@ func TestSolve(t *testing.T) {
 		})
 	}
 }
+
+// TODO test .SolveOneStep() for all strategies
 
 func someErr(errs ...error) error {
 	for _, err := range errs {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/cnblvr/puzzles/app"
 	"github.com/pkg/errors"
+	zlog "github.com/rs/zerolog/log"
 	"sort"
 	"strings"
 )
@@ -25,25 +26,74 @@ func newPuzzleCandidates(fill bool) puzzleCandidates {
 	return candidates
 }
 
+func (c puzzleCandidates) clone() puzzleCandidates {
+	clone := newPuzzleCandidates(false)
+	for row := 0; row < size; row++ {
+		for col := 0; col < size; col++ {
+			clone[row][col].add(c[row][col].slice()...)
+		}
+	}
+	return clone
+}
+
+type puzzleCandidatesExternal struct {
+	Base   map[string][]int8 `json:"base,omitempty"`
+	Add    map[string][]int8 `json:"add,omitempty"`
+	Delete map[string][]int8 `json:"del,omitempty"`
+}
+
 func (c puzzleCandidates) encode() string {
-	out := make(map[string][]int8)
+	out := puzzleCandidatesExternal{
+		Base: make(map[string][]int8),
+	}
 	c.forEach(func(point app.Point, candidates cellCandidates, _ *bool) {
 		if candidates.len() == 0 {
 			return
 		}
-		out[point.String()] = candidates.sliceInt8()
+		out.Base[point.String()] = candidates.sliceInt8()
 	})
-	bts, _ := json.Marshal(out)
+	bts, err := json.Marshal(out)
+	if err != nil {
+		zlog.Warn().Err(err).Msg("failed to encode puzzleCandidates")
+	}
+	return string(bts)
+}
+
+func (c puzzleCandidates) encodeOnlyChanges(base puzzleCandidates) string {
+	out := puzzleCandidatesExternal{
+		Add:    make(map[string][]int8),
+		Delete: make(map[string][]int8),
+	}
+	c.forEach(func(point app.Point, candidates cellCandidates, _ *bool) {
+		del := base[point.Row][point.Col].complement(candidates)
+		if del.len() > 0 {
+			out.Delete[point.String()] = del.sliceInt8()
+		}
+		add := candidates.complement(base[point.Row][point.Col])
+		if add.len() > 0 {
+			out.Add[point.String()] = add.sliceInt8()
+		}
+	})
+	if len(out.Add) == 0 {
+		out.Add = nil
+	}
+	if len(out.Delete) == 0 {
+		out.Delete = nil
+	}
+	bts, err := json.Marshal(out)
+	if err != nil {
+		zlog.Warn().Err(err).Msg("failed to encodeOnlyChanges puzzleCandidates")
+	}
 	return string(bts)
 }
 
 func decodeCandidates(s string) (puzzleCandidates, error) {
-	in := make(map[string][]uint8)
+	in := puzzleCandidatesExternal{}
 	if err := json.Unmarshal([]byte(s), &in); err != nil {
 		return puzzleCandidates{}, err
 	}
 	c := newPuzzleCandidates(false)
-	for pointStr, candidates := range in {
+	for pointStr, candidates := range in.Base {
 		point, err := app.PointFromString(pointStr)
 		if err != nil {
 			return puzzleCandidates{}, errors.Wrapf(err, "failed to parse point '%s'", pointStr)
@@ -56,7 +106,7 @@ func decodeCandidates(s string) (puzzleCandidates, error) {
 				return puzzleCandidates{}, errors.Errorf("failed to parse candidate '%d': invalid", candidate)
 			}
 		}
-		c[point.Row][point.Col].add(candidates...)
+		c[point.Row][point.Col].addInt8(candidates...)
 	}
 	return c, nil
 }
@@ -87,20 +137,17 @@ func (p puzzle) optimizeCandidates(c puzzleCandidates) {
 	})
 }
 
-func (c puzzleCandidates) simpleRemoveAfterSet(point app.Point, value uint8) (removals []app.Point) {
+func (c puzzleCandidates) simpleRemoveAfterSet(point app.Point, value uint8) {
 	rowBox, colBox := point.Row/sizeGrp*sizeGrp, point.Col/sizeGrp*sizeGrp
 	for i := 0; i < size; i++ {
 		if _, ok := c[point.Row][i][value]; i != point.Col && ok {
-			removals = append(removals, app.Point{Row: point.Row, Col: i})
 			delete(c[point.Row][i], value)
 		}
 		if _, ok := c[i][point.Col][value]; i != point.Row && ok {
-			removals = append(removals, app.Point{Row: i, Col: point.Col})
 			delete(c[i][point.Col], value)
 		}
 		boxPoint := app.Point{Row: rowBox + i%sizeGrp, Col: colBox + i/sizeGrp}
 		if _, ok := c[boxPoint.Row][boxPoint.Col][value]; boxPoint != point && ok {
-			removals = append(removals, boxPoint)
 			delete(c[rowBox+i%sizeGrp][colBox+i/sizeGrp], value)
 		}
 	}
@@ -110,7 +157,7 @@ func (c puzzleCandidates) simpleRemoveAfterSet(point app.Point, value uint8) (re
 	return
 }
 
-func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []uint8, removals []app.Point, changed bool) {
+func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []uint8, changed bool) {
 	c.forEach(func(point1 app.Point, candidates1 cellCandidates, stop1 *bool) {
 		if candidates1.len() != 2 {
 			return
@@ -125,7 +172,6 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 			}
 			c.forEachInRow(point1.Row, func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
 				if candidates3.delete(pairA...) {
-					removals = append(removals, point3)
 					changed = true
 				}
 			}, point1.Col, point2.Col)
@@ -147,7 +193,6 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 			}
 			c.forEachInCol(point1.Col, func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
 				if candidates3.delete(pairA...) {
-					removals = append(removals, point3)
 					changed = true
 				}
 			}, point1.Row, point2.Row)
@@ -169,7 +214,6 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 			}
 			c.forEachInBox(point1, func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
 				if candidates3.delete(pairA...) {
-					removals = append(removals, point3)
 					changed = true
 				}
 			}, point1, point2)
@@ -186,7 +230,7 @@ func (c puzzleCandidates) strategyNakedPair() (pairPoints []app.Point, pair []ui
 	return
 }
 
-func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []uint8, removals []app.Point, changed bool) {
+func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []uint8, changed bool) {
 	c.forEach(func(point1 app.Point, candidates1 cellCandidates, stop1 *bool) {
 		if l := candidates1.len(); l < 2 || 3 < l {
 			return
@@ -213,7 +257,6 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 				// triple found
 				c.forEachInRow(point1.Row, func(point4 app.Point, candidates4 cellCandidates, _ *bool) {
 					if candidates4.delete(uniqueC.slice()...) {
-						removals = append(removals, point4)
 						changed = true
 					}
 				}, point1.Col, point2.Col, point3.Col)
@@ -248,7 +291,6 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 				// triple found
 				c.forEachInCol(point1.Col, func(point4 app.Point, candidates4 cellCandidates, _ *bool) {
 					if candidates4.delete(uniqueC.slice()...) {
-						removals = append(removals, point4)
 						changed = true
 					}
 				}, point1.Row, point2.Row, point3.Row)
@@ -283,7 +325,6 @@ func (c puzzleCandidates) strategyNakedTriple() (points []app.Point, triple []ui
 				// triple found
 				c.forEachInBox(point1, func(point4 app.Point, candidates4 cellCandidates, _ *bool) {
 					if candidates4.delete(uniqueC.slice()...) {
-						removals = append(removals, point4)
 						changed = true
 					}
 				}, point1, point2, point3)
@@ -500,7 +541,7 @@ func (c puzzleCandidates) strategyHiddenTriple() (points []app.Point, triple []u
 }
 
 // strategy Pointing Pair or Triple
-func (c puzzleCandidates) strategyPointingPairTriple() (points []app.Point, value uint8, removals []app.Point, changed bool) {
+func (c puzzleCandidates) strategyPointingPairTriple() (points []app.Point, value uint8, changed bool) {
 	c.forEachBox(func(pointBox1 app.Point, stop1 *bool) {
 		for digit := uint8(1); digit <= size; digit++ {
 			rows, cols := newCellCandidatesEmpty(), newCellCandidatesEmpty() // TODO is Set, not cellCandidates
@@ -518,7 +559,6 @@ func (c puzzleCandidates) strategyPointingPairTriple() (points []app.Point, valu
 			if rows.len() == 1 {
 				c.forEachInRow(int(rows.slice()[0]), func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
 					if candidates3.delete(digit) {
-						removals = append(removals, point3)
 						changed = true
 					}
 				}, cols.sliceInt()...)
@@ -532,7 +572,6 @@ func (c puzzleCandidates) strategyPointingPairTriple() (points []app.Point, valu
 			if cols.len() == 1 {
 				c.forEachInCol(int(cols.slice()[0]), func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
 					if candidates3.delete(digit) {
-						removals = append(removals, point3)
 						changed = true
 					}
 				}, rows.sliceInt()...)
@@ -548,7 +587,7 @@ func (c puzzleCandidates) strategyPointingPairTriple() (points []app.Point, valu
 	return
 }
 
-func (c puzzleCandidates) strategyBoxLineReductionPairTriple() (points []app.Point, value uint8, removals []app.Point, changed bool) {
+func (c puzzleCandidates) strategyBoxLineReductionPairTriple() (points []app.Point, value uint8, changed bool) {
 	for row := 0; row < size; row++ {
 		for digit := uint8(1); digit <= size; digit++ {
 			boxes := newCellCandidatesEmpty()
@@ -565,7 +604,6 @@ func (c puzzleCandidates) strategyBoxLineReductionPairTriple() (points []app.Poi
 			// candidates in one box and in row found
 			c.forEachInBox(pointsDigit[0], func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
 				if candidates3.delete(digit) {
-					removals = append(removals, point3)
 					changed = true
 				}
 			}, pointsDigit...)
@@ -592,7 +630,6 @@ func (c puzzleCandidates) strategyBoxLineReductionPairTriple() (points []app.Poi
 			// candidates in one box and in column found
 			c.forEachInBox(pointsDigit[0], func(point3 app.Point, candidates3 cellCandidates, _ *bool) {
 				if candidates3.delete(digit) {
-					removals = append(removals, point3)
 					changed = true
 				}
 			}, pointsDigit...)
@@ -606,7 +643,7 @@ func (c puzzleCandidates) strategyBoxLineReductionPairTriple() (points []app.Poi
 	return
 }
 
-func (c puzzleCandidates) strategyXWing() (pairA, pairB []app.Point, value uint8, removals []app.Point, changed bool) {
+func (c puzzleCandidates) strategyXWing() (pairA, pairB []app.Point, value uint8, changed bool) {
 	for digit := uint8(1); digit <= size; digit++ {
 		type tPair struct {
 			unit int
@@ -649,7 +686,6 @@ func (c puzzleCandidates) strategyXWing() (pairA, pairB []app.Point, value uint8
 				// pairs in row found
 				removeCandidates := func(point2 app.Point, candidates2 cellCandidates, _ *bool) {
 					if candidates2.delete(digit) {
-						removals = append(removals, point2)
 						changed = true
 					}
 				}
@@ -702,7 +738,6 @@ func (c puzzleCandidates) strategyXWing() (pairA, pairB []app.Point, value uint8
 				// pairs in column found
 				removeCandidates := func(point2 app.Point, candidates2 cellCandidates, _ *bool) {
 					if candidates2.delete(digit) {
-						removals = append(removals, point2)
 						changed = true
 					}
 				}
@@ -927,6 +962,12 @@ func (c cellCandidates) deleteExcept(digits ...uint8) bool {
 func (c cellCandidates) add(digits ...uint8) {
 	for _, digit := range digits {
 		c[digit] = struct{}{}
+	}
+}
+
+func (c cellCandidates) addInt8(digits ...int8) {
+	for _, digit := range digits {
+		c[uint8(digit)] = struct{}{}
 	}
 }
 
