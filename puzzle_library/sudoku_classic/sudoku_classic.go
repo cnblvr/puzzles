@@ -7,6 +7,7 @@ import (
 	"github.com/cnblvr/puzzles/app"
 	"github.com/pkg/errors"
 	"math/rand"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -72,25 +73,93 @@ func (p puzzle) Type() app.PuzzleType {
 	return app.PuzzleSudokuClassic
 }
 
+type SudokuClassic struct{}
+
+func (sc SudokuClassic) Type() app.PuzzleType {
+	return app.PuzzleSudokuClassic
+}
+
 // NewRandomSolution generates a solution randomly for further extraction of
 // digits.
-func NewRandomSolution() (s app.PuzzleGenerator, seed int64) {
+func (sc SudokuClassic) NewRandomSolution() (s app.PuzzleGenerator, seed int64) {
 	seedBts := make([]byte, 8)
 	if _, err := crand.Reader.Read(seedBts); err != nil {
 		panic(err)
 	}
 	seed = int64(binary.LittleEndian.Uint64(seedBts))
-	return NewSolutionBySeed(seed), seed
+	return sc.NewSolutionBySeed(seed), seed
 }
 
 // NewSolutionBySeed generates a solution with a given seed for further
 // extraction of digits.
-func NewSolutionBySeed(seed int64) app.PuzzleGenerator {
+func (sc SudokuClassic) NewSolutionBySeed(seed int64) app.PuzzleGenerator {
 	rnd := rand.New(rand.NewSource(seed))
 
 	s := generateWithoutShuffling(rnd)
 
+	s.shuffle(rnd)
+
 	return &s
+}
+
+func (p puzzle) shuffle(rnd *rand.Rand) {
+
+	// swap of horizontal or vertical lines within one "big" line
+	// TODO: imperfect randomization
+	for i := 0; i < (rnd.Int()%1024)+1024; i++ {
+		typ := app.Horizontal
+		if rnd.Int()%2 == 1 {
+			typ = app.Vertical
+		}
+		line := rnd.Int() % 9
+		_ = p.SwapLines(typ, line, neighborLine(line, rnd.Int()%2))
+	}
+
+	// TODO: swap "big" lines
+
+	// horizontal reflection
+	if rnd.Int()%2 == 1 {
+		_ = p.Reflect(app.ReflectHorizontal)
+	}
+	// vertical reflection
+	if rnd.Int()%2 == 1 {
+		_ = p.Reflect(app.ReflectVertical)
+	}
+
+	// rotate the puzzle by a random angle
+	_ = p.Rotate(app.RotationType(rnd.Int() % 4))
+}
+
+// Calculation of the neighboring line.
+// lineIdx in the range [0,8].
+// neighbor can take values {0,1}.
+func neighborLine(lineIdx int, neighbor int) int {
+	switch neighbor {
+	case 0:
+		switch lineIdx % 3 {
+		case 0:
+			return lineIdx + 1
+		case 1:
+			return lineIdx - 1
+		case 2:
+			return lineIdx - 2
+		default:
+			return lineIdx
+		}
+	case 1:
+		switch lineIdx % 3 {
+		case 0:
+			return lineIdx + 2
+		case 1:
+			return lineIdx + 1
+		case 2:
+			return lineIdx - 1
+		default:
+			return lineIdx
+		}
+	default:
+		return lineIdx
+	}
 }
 
 func generateWithoutShuffling(rnd *rand.Rand) (s puzzle) {
@@ -489,14 +558,35 @@ func (p *puzzle) solveOneStep(candidates puzzleCandidates, candidatesBase puzzle
 	return
 }
 
+func getRandomCountCluesBy(rnd *rand.Rand, level app.PuzzleLevel) int {
+	min, max := 0, 0
+	switch level {
+	case app.PuzzleLevelEasy:
+		min, max = 33, 37
+	case app.PuzzleLevelNormal:
+		min, max = 28, 32
+	case app.PuzzleLevelHard:
+		min, max = 17, 27
+	}
+	return (rnd.Int() % (max - min + 1)) + min
+}
+
 func (p *puzzle) GenerateLogic(seed int64, strategies app.PuzzleStrategy) (app.PuzzleStrategy, error) {
 	rnd := rand.New(rand.NewSource(seed))
 	givenStrategies := app.StrategyUnknown
+	limitClues := getRandomCountCluesBy(rnd, strategies.Level())
+	removedClues := 0
 	for _, point := range getRandomPoints(rnd) {
+		oneRemoveStrategies := givenStrategies
+		if 81-removedClues <= limitClues {
+			return givenStrategies, nil
+		}
 		digit := p[point.Row][point.Col]
 		p[point.Row][point.Col] = 0
-		revert := func() {
+		removedClues++
+		revert := func(p *puzzle) {
 			p[point.Row][point.Col] = digit
+			removedClues--
 		}
 		candidates := p.findSimpleCandidates()
 		var wg sync.WaitGroup
@@ -509,23 +599,54 @@ func (p *puzzle) GenerateLogic(seed int64, strategies app.PuzzleStrategy) (app.P
 			_, _, err = solution.solve(candidates, chanSteps, strategies)
 		}()
 		for step := range chanSteps {
-			givenStrategies |= step.Strategy()
+			//log.Printf("%010b %+v", oneRemoveStrategies, step)
+			oneRemoveStrategies |= step.Strategy()
 		}
 		wg.Wait()
 		if err != nil {
-			revert()
+			revert(p)
 			continue
 		}
-		if len(solution.GetWrongPoints()) > 0 {
-			revert()
+		if !solution.isSolved() {
+			revert(p)
 			continue
 		}
+		givenStrategies = oneRemoveStrategies
 	}
 	return givenStrategies, nil
 }
 
 func (p puzzle) GenerateRandom(seed int64) error {
 	return errors.Errorf("not implemented")
+}
+
+func (p *puzzle) MakeUserStep(candidatesIn string, step app.PuzzleUserStep) (candidatesOut string, wrongCandidates string, err error) {
+	var c puzzleCandidates
+	c, err = decodeCandidates(candidatesIn)
+	if err != nil {
+		err = errors.WithStack(err)
+		return
+	}
+
+	switch step.Type {
+	case app.UserStepSetDigit:
+		p[step.Point.Row][step.Point.Col] = uint8(step.Digit)
+	case app.UserStepDeleteDigit:
+		p[step.Point.Row][step.Point.Col] = 0
+	case app.UserStepSetCandidate:
+		c[step.Point.Row][step.Point.Col].addInt8(step.Digit)
+	case app.UserStepDeleteCandidate:
+		c[step.Point.Row][step.Point.Col].delete(uint8(step.Digit))
+	default:
+		err = errors.WithStack(err)
+		return
+	}
+
+	wrongs := p.getWrongCandidates(c)
+	wrongCandidates = wrongs.encode()
+
+	candidatesOut = c.encode()
+	return
 }
 
 func (p puzzle) forEach(fn func(point app.Point, val uint8, stop *bool), excludePoints ...app.Point) {
@@ -603,12 +724,31 @@ func (p puzzle) forEachInBox(point app.Point, fn func(point app.Point, val uint8
 	}
 }
 
+func (p puzzle) isSolved() bool {
+	out := true
+	p.forEach(func(point1 app.Point, val1 uint8, stop1 *bool) {
+		if val1 == 0 {
+			*stop1, out = true, false
+			return
+		}
+		fnCheck := func(point2 app.Point, val2 uint8, stop2 *bool) {
+			if val1 == val2 {
+				*stop1, *stop2, out = true, true, false
+				return
+			}
+		}
+		p.forEachInRow(point1.Row, fnCheck, point1.Col)
+		p.forEachInCol(point1.Col, fnCheck, point1.Row)
+		p.forEachInBox(point1, fnCheck, point1)
+	})
+	return out
+}
+
 func (p puzzle) GetWrongPoints() (points []app.Point) {
 	pointsUnique := make(map[app.Point]struct{})
 	p.forEach(func(point1 app.Point, val1 uint8, _ *bool) {
 		fnCheck := func(point2 app.Point, val2 uint8, _ *bool) {
-			if val1 == 0 || val1 == val2 {
-				pointsUnique[point1] = struct{}{}
+			if val1 != 0 && val1 == val2 {
 				pointsUnique[point2] = struct{}{}
 			}
 		}
@@ -619,6 +759,12 @@ func (p puzzle) GetWrongPoints() (points []app.Point) {
 	for point := range pointsUnique {
 		points = append(points, point)
 	}
+	sort.Slice(points, func(i, j int) bool {
+		if points[i].Row == points[j].Row {
+			return points[i].Col < points[j].Col
+		}
+		return points[i].Row < points[j].Row
+	})
 	return
 }
 

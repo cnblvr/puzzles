@@ -43,17 +43,17 @@ func (r websocketMakeStepRequest) Execute(ctx context.Context) (websocketRespons
 		return websocketMakeStepResponse{}, fmt.Errorf("internal server error")
 	}
 
-	assistant, err := puzzle_library.GetAssistant(puzzle.Type)
+	statePuzzle, err := puzzle_library.GetAssistant(puzzle.Type, game.State)
 	if err != nil {
 		return websocketMakeStepResponse{}, fmt.Errorf("internal server error")
 	}
 
-	newState, newStateCandidates, err := assistant.MakeStep(ctx, game.State, game.StateCandidates, r.Step)
+	newStateCandidates, wrongCandidates, err := statePuzzle.MakeUserStep(game.StateCandidates, r.Step)
 	if err != nil {
 		return websocketMakeStepResponse{}, errors.Wrap(err, "failed to make step")
 	}
 	game.IsNew = false
-	game.State, game.StateCandidates = newState, newStateCandidates
+	game.State, game.StateCandidates = statePuzzle.String(), newStateCandidates
 
 	defer func() {
 		if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
@@ -61,7 +61,7 @@ func (r websocketMakeStepRequest) Execute(ctx context.Context) (websocketRespons
 		}
 	}()
 
-	if newState == puzzle.Solution {
+	if game.State == puzzle.Solution {
 		// WIN
 		game.IsWin = true
 		return websocketMakeStepResponse{
@@ -69,15 +69,9 @@ func (r websocketMakeStepRequest) Execute(ctx context.Context) (websocketRespons
 		}, nil
 	}
 
-	uniqueErrs := make(map[app.Point]struct{})
-	for _, p := range assistant.FindUserErrors(ctx, newState) {
-		uniqueErrs[p] = struct{}{}
-	}
-	for p := range uniqueErrs {
-		resp.Errors = append(resp.Errors, p)
-	}
+	resp.Errors = statePuzzle.GetWrongPoints()
 
-	resp.ErrorsCandidates = json.RawMessage(assistant.FindUserCandidatesErrors(ctx, newState, newStateCandidates))
+	resp.ErrorsCandidates = json.RawMessage(wrongCandidates)
 
 	return resp, nil
 }

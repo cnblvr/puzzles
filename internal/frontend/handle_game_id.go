@@ -9,7 +9,8 @@ import (
 )
 
 type RenderDataGameID struct {
-	GameID string
+	GameID          string
+	UserPreferences *app.UserPreferences
 }
 
 func (srv *service) HandleGameID(w http.ResponseWriter, r *http.Request) {
@@ -47,6 +48,12 @@ func (srv *service) HandleGameID(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, app.EndpointHome, http.StatusSeeOther)
 		return
 	}
+
+	var userPreferences *app.UserPreferences
+	if session.UserID > 0 {
+		userPreferences, _ = srv.userRepository.GetUserPreferences(ctx, session.UserID)
+	}
+	renderData.UserPreferences = userPreferences
 
 	srv.executeTemplate(ctx, w, templates.PageGameID, func(params *templates.Params) {
 		params.Header.Title = "Puzzle game"

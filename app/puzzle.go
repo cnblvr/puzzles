@@ -10,7 +10,6 @@ import (
 )
 
 //go:generate stringer -type=PuzzleStrategy -linecomment -trimprefix Strategy -output puzzle_strategy_string.go
-//go:generate stringer -type=PuzzleLevel -linecomment -trimprefix PuzzleLevel -output puzzle_level_string.go
 
 type PuzzleRepository interface {
 	// Errors: ErrorPuzzlePoolEmpty, ErrorPuzzleNotFound, unknown.
@@ -44,11 +43,18 @@ type CreatePuzzleParams struct {
 	GeneratedPuzzle
 }
 
+type PuzzleCreator interface {
+	Type() PuzzleType
+	NewRandomSolution() (s PuzzleGenerator, seed int64)
+	NewSolutionBySeed(seed int64) PuzzleGenerator
+}
+
 type PuzzleAssistant interface {
 	String() string
 	Type() PuzzleType
 	GetWrongPoints() []Point
 	GetWrongCandidates(candidates string) (string, error)
+	MakeUserStep(candidatesIn string, step PuzzleUserStep) (candidatesOut string, wrongCandidates string, err error)
 	//GetCandidates(ctx context.Context, clues string) string
 	//FindUserErrors(ctx context.Context, userState string) []Point
 	//FindUserCandidatesErrors(ctx context.Context, state string, stateCandidates string) string
@@ -58,6 +64,7 @@ type PuzzleAssistant interface {
 type PuzzleGenerator interface {
 	String() string
 	Type() PuzzleType
+	GetCandidates() string
 	GetWrongPoints() []Point
 	SwapLines(dir DirectionType, a, b int) error
 	SwapBigLines(dir DirectionType, a, b int) error
@@ -96,8 +103,8 @@ const (
 	StrategyXWing                                             // X-Wing
 	StrategyUnknown                PuzzleStrategy = 0
 
-	levelEasyStrategies   = StrategyNakedSingle | StrategyHiddenSingle
-	levelNormalStrategies = StrategyNakedPair | StrategyNakedTriple | StrategyHiddenPair | StrategyHiddenTriple
+	levelEasyStrategies   = StrategyNakedSingle
+	levelNormalStrategies = StrategyNakedPair | StrategyNakedTriple | StrategyHiddenSingle | StrategyHiddenPair | StrategyHiddenTriple
 	levelHardStrategies   = StrategyNakedQuad | StrategyHiddenQuad | StrategyPointingPair | StrategyPointingTriple |
 		StrategyBoxLineReductionPair | StrategyBoxLineReductionTriple
 	levelHarderStrategies = StrategyXWing // TODO
@@ -124,7 +131,7 @@ func (i PuzzleStrategy) Level() PuzzleLevel {
 	case i&levelEasyStrategies > 0:
 		return PuzzleLevelEasy
 	default:
-		return 0
+		return ""
 	}
 }
 
@@ -233,11 +240,11 @@ var (
 type PuzzleType string
 
 const (
-	PuzzleSudokuClassic PuzzleType = "sudoku_classic"
-	PuzzleJigsaw        PuzzleType = "jigsaw"
-	PuzzleWindoku       PuzzleType = "windoku"
-	PuzzleSudokuX       PuzzleType = "sudoku_x"
-	PuzzleKakuro        PuzzleType = "kakuro"
+	PuzzleSudokuClassic PuzzleType = "sudoku_classic" // Sudoku Classic
+	PuzzleJigsaw        PuzzleType = "jigsaw"         // Jigsaw
+	PuzzleWindoku       PuzzleType = "windoku"        // Windoku
+	PuzzleSudokuX       PuzzleType = "sudoku_x"       // Sudoku X
+	PuzzleKakuro        PuzzleType = "kakuro"         // Kakuro
 	DefaultPuzzleType              = PuzzleSudokuClassic
 )
 
@@ -245,18 +252,23 @@ func (t PuzzleType) String() string {
 	return string(t)
 }
 
-type PuzzleLevel uint8
+type PuzzleLevel string
 
 const (
-	PuzzleLevelEasy PuzzleLevel = iota + 1
-	PuzzleLevelNormal
-	PuzzleLevelHard
-	PuzzleLevelHarder
-	PuzzleLevelInsane
-	PuzzleLevelDemon
-	PuzzleLevelCustom
+	PuzzleLevelEasy    = PuzzleLevel("easy")
+	PuzzleLevelNormal  = PuzzleLevel("normal")
+	PuzzleLevelHard    = PuzzleLevel("hard")
+	PuzzleLevelHarder  = PuzzleLevel("harder")
+	PuzzleLevelInsane  = PuzzleLevel("insane")
+	PuzzleLevelDemon   = PuzzleLevel("demon")
+	PuzzleLevelCustom  = PuzzleLevel("custom")
+	PuzzleLevelUnknown = PuzzleLevel("")
 	DefaultPuzzleLevel = PuzzleLevelNormal
 )
+
+func (l PuzzleLevel) String() string {
+	return string(l)
+}
 
 func (l PuzzleLevel) Strategies() PuzzleStrategy {
 	switch l {

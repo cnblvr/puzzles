@@ -1,12 +1,32 @@
-{{define "page_game_id"}}{{template "header" .Header}}
+{{define "page_game_id"}}{{template "header" .Header}}{{
+    $useHighlights := false
+}}{{$useCandidates := true
+}}{{$uPref := .Data.UserPreferences}}{{with $uPref}}{{
+    $useHighlights = $uPref.UseHighlights
+}}{{$useCandidates = $uPref.UseCandidates
+}}{{end}}
 <section id="sec-game"><div id="game-board"></div><div id="keyboard"></div></section><p id="_game_id" hidden>{{.Data.GameID}}</p>
+<ul class="list checkbox">
+    <li>
+        <input type="checkbox" id="option_use_highlights"{{if $useHighlights}} checked="checked"{{end}}>
+        <label class="non-select" for="option_use_highlights">use highlights</label>
+    </li>
+    <li>
+        <input type="checkbox" id="option_use_candidates"{{if $useCandidates}} checked="checked"{{end}}>
+        <label class="non-select" for="option_use_candidates">use candidates</label>
+    </li>
+</ul>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         let s = new Sudoku({
             selector: '#game-board',
             allowEditing: true,
             keyboardSelector: '#keyboard',
-            gameID: document.querySelector('#_game_id').textContent
+            gameID: document.querySelector('#_game_id').textContent,
+            options: {
+                useHighlights: '#option_use_highlights',
+                useCandidates: '#option_use_candidates'
+            }
         });
         let ws = new WS({
             url: 'ws://'+location.host+'/game_ws',

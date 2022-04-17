@@ -34,8 +34,8 @@ func (p *PostHome) Validate() string {
 	}
 
 	switch p.Level {
-	case app.PuzzleLevelEasy, app.PuzzleLevelMedium, app.PuzzleLevelHard:
-	case "":
+	case app.PuzzleLevelEasy, app.PuzzleLevelNormal, app.PuzzleLevelHard, app.PuzzleLevelHarder:
+	case app.PuzzleLevelUnknown:
 		return "Puzzle level is not chosen."
 	default:
 		return fmt.Sprintf("The puzzle level '%s' is not supported.", p.Level)
@@ -48,7 +48,24 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log, session := FromContextLogger(ctx), FromContextSession(ctx)
 
-	renderData := RenderDataHome{}
+	renderData := RenderDataHome{
+		PuzzleTypes: []listItem{
+			{ID: string(app.PuzzleSudokuClassic), Name: "Sudoku Classic", Default: true},
+			{ID: string(app.PuzzleJigsaw), Name: "Jigsaw", Disabled: true},
+			{ID: string(app.PuzzleWindoku), Name: "Windoku", Disabled: true},
+			{ID: string(app.PuzzleSudokuX), Name: "Sudoku X", Disabled: true},
+			{ID: string(app.PuzzleKakuro), Name: "Kakuro", Disabled: true},
+		},
+		PuzzleLevels: []listItem{
+			{ID: string(app.PuzzleLevelEasy), Name: "Easy"},
+			{ID: string(app.PuzzleLevelNormal), Name: "Normal", Default: true},
+			{ID: string(app.PuzzleLevelHard), Name: "Hard"},
+			{ID: string(app.PuzzleLevelHarder), Name: "Harder"},
+			{ID: string(app.PuzzleLevelInsane), Name: "Insane", Disabled: true},
+			{ID: string(app.PuzzleLevelDemon), Name: "Demon", Disabled: true},
+			{ID: string(app.PuzzleLevelCustom), Name: "Custom", Disabled: true},
+		},
+	}
 
 	var userPreferences *app.UserPreferences
 	if session.UserID > 0 {
@@ -67,8 +84,7 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 			if renderData.ErrorMessage != "" {
 				return
 			}
-			log = log.With().Stringer("puzzle_type", post.PuzzleType).
-				Stringer("puzzle_level", post.Level).Logger()
+			log = log.With().Stringer("puzzle_type", post.PuzzleType).Stringer("puzzle_level", post.Level).Logger()
 
 			_, game, err := srv.puzzleRepository.CreateRandomPuzzleGame(ctx, app.CreateRandomPuzzleGameParams{
 				Session: session,
@@ -116,7 +132,16 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type listItem struct {
+	ID       string
+	Name     string
+	Default  bool
+	Disabled bool
+}
+
 type RenderDataHome struct {
+	PuzzleTypes     []listItem
+	PuzzleLevels    []listItem
 	UserPreferences *app.UserPreferences
 	ErrorMessage    string
 }

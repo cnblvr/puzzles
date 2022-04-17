@@ -111,6 +111,10 @@ func decodeCandidates(s string) (puzzleCandidates, error) {
 	return c, nil
 }
 
+func (p puzzle) GetCandidates() string {
+	return p.findSimpleCandidates().encode()
+}
+
 func (p puzzle) findSimpleCandidates() puzzleCandidates {
 	candidates := newPuzzleCandidates(true)
 	p.forEach(func(point app.Point, val uint8, _ *bool) {
@@ -759,6 +763,11 @@ func (p puzzle) GetWrongCandidates(candidates string) (string, error) {
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
+	wrongs := p.getWrongCandidates(c)
+	return wrongs.encode(), nil
+}
+
+func (p puzzle) getWrongCandidates(c puzzleCandidates) puzzleCandidates {
 	wrongs := newPuzzleCandidates(false)
 	c.forEach(func(point1 app.Point, candidates1 cellCandidates, _ *bool) {
 		if p[point1.Row][point1.Col] > 0 {
@@ -776,7 +785,7 @@ func (p puzzle) GetWrongCandidates(candidates string) (string, error) {
 			p.forEachInBox(point1, findErrs, point1)
 		}
 	})
-	return wrongs.encode(), nil
+	return wrongs
 }
 
 func (c puzzleCandidates) in(point app.Point) []uint8 {

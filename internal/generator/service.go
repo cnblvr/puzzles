@@ -43,59 +43,61 @@ func NewService() (app.ServiceGenerator, error) {
 
 func (srv *service) Run() error {
 	for {
-		if err := srv.GeneratePuzzle(app.PuzzleSudokuClassic, rand.Int63()); err != nil {
-			log.Error().Err(err).Msg("GeneratePuzzle failed")
+		for _, level := range []app.PuzzleLevel{
+			app.PuzzleLevelEasy, app.PuzzleLevelNormal, app.PuzzleLevelHard, app.PuzzleLevelHarder,
+		} {
+			for {
+				if gotLevel, err := srv.GeneratePuzzle(app.PuzzleSudokuClassic, rand.Int63(), level); err != nil {
+					log.Error().Err(err).Msg("GeneratePuzzle failed")
+					time.Sleep(time.Second)
+				} else if gotLevel != level {
+					log.Info().Stringer("want_level", level).Stringer("got_level", gotLevel).Msg("regenerate want level")
+				} else {
+					break
+				}
+			}
+			if level == app.PuzzleLevelHarder {
+				log.Fatal().Send()
+			}
 		}
 	}
 }
 
-func (srv *service) GeneratePuzzle(typ app.PuzzleType, seed int64) error {
-	generator, err := puzzle_library.GetGenerator(typ)
+func (srv *service) GeneratePuzzle(typ app.PuzzleType, seed int64, level app.PuzzleLevel) (app.PuzzleLevel, error) {
+	creator, err := puzzle_library.GetCreator(typ)
 	if err != nil {
-		return errors.WithStack(err)
+		return app.PuzzleLevelUnknown, errors.WithStack(err)
 	}
 
-	generatedSolutions := make([]app.GeneratedPuzzle, 0, 3)
-	func() {
-		ctx := context.Background()
-		ctxGen, cancelGen := context.WithTimeout(ctx, time.Hour)
-		defer cancelGen()
-		generatedSolutionsChan := make(chan app.GeneratedPuzzle, 3)
-		go generator.GenerateSolution(ctxGen, seed, generatedSolutionsChan)
-		for solution := range generatedSolutionsChan {
-			generatedSolutions = append(generatedSolutions, solution)
-		}
-	}()
+	puzzle := creator.NewSolutionBySeed(seed)
 
-	for _, solution := range generatedSolutions {
-		err := func(solution app.GeneratedPuzzle) error {
-			ctx := context.Background()
+	solution := puzzle.String()
 
-			ctxGen, cancelGen := context.WithTimeout(ctx, time.Hour)
-			defer cancelGen()
-			generatedCluesChan := make(chan app.GeneratedPuzzle, 3)
-			go generator.GenerateClues(ctxGen, seed, solution, generatedCluesChan)
-			for clues := range generatedCluesChan {
-				// Save sudoku
-				sudoku, err := srv.puzzleRepository.CreatePuzzle(ctx, app.CreatePuzzleParams{
-					Type:            generator.Type(),
-					GeneratedPuzzle: clues,
-				})
-				if err != nil {
-					log.Error().Err(err).Msg("failed to create new puzzle in db")
-					return err
-				}
-				log.Info().Int64("id", sudoku.ID).
-					Stringer("puzzle_type", generator.Type()).
-					Stringer("puzzle_level", clues.Level).
-					Msg("new puzzle created and saved")
-			}
-			return nil
-		}(solution)
-		if err != nil {
-			return err
-		}
+	strategies, err := puzzle.GenerateLogic(seed, level.Strategies())
+	if err != nil {
+		return app.PuzzleLevelUnknown, errors.Wrap(err, "failed to generate logic")
 	}
+	level = strategies.Level()
 
-	return nil
+	sudoku, err := srv.puzzleRepository.CreatePuzzle(context.TODO(), app.CreatePuzzleParams{
+		Type: creator.Type(),
+		GeneratedPuzzle: app.GeneratedPuzzle{
+			Seed:       seed,
+			Level:      level,
+			Meta:       "{}",
+			Clues:      puzzle.String(),
+			Candidates: puzzle.GetCandidates(),
+			Solution:   solution,
+		},
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to create new puzzle in db")
+		return app.PuzzleLevelUnknown, err
+	}
+	log.Info().Int64("id", sudoku.ID).
+		Stringer("puzzle_type", creator.Type()).
+		Stringer("puzzle_level", level).
+		Msg("new puzzle created and saved")
+
+	return level, nil
 }

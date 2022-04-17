@@ -116,6 +116,8 @@ type UserPreferences struct {
 	PuzzleType        PuzzleType  `json:"puzzle_type" redis:"puzzle_type"`
 	PuzzleLevel       PuzzleLevel `json:"puzzle_level" redis:"puzzle_level"`
 	CandidatesAtStart bool        `json:"candidates_at_start" redis:"candidates_at_start"`
+	UseHighlights     bool        `json:"use_highlights" redis:"use_highlights"`
+	UseCandidates     bool        `json:"use_candidates" redis:"use_candidates"`
 }
 
 const DefaultCookieSessionExpiration = time.Hour * 24

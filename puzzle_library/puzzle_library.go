@@ -5,6 +5,15 @@ import (
 	"github.com/cnblvr/puzzles/puzzle_library/sudoku_classic"
 )
 
+func GetCreator(typ app.PuzzleType) (app.PuzzleCreator, error) {
+	switch typ {
+	case app.PuzzleSudokuClassic:
+		return sudoku_classic.SudokuClassic{}, nil
+	default:
+		return nil, app.ErrorPuzzleTypeUnknown
+	}
+}
+
 func GetGenerator(typ app.PuzzleType, puzzle string) (app.PuzzleGenerator, error) {
 	switch typ {
 	case app.PuzzleSudokuClassic:

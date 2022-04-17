@@ -85,6 +85,12 @@ func (r *redisRepository) UpdatePuzzleGame(ctx context.Context, game *app.Puzzle
 		return errors.WithStack(err)
 	}
 
+	if game.IsWin && game.UserID > 0 {
+		if _, err := conn.Do("SADD", r.keyUserSolvedPuzzles(game.UserID), game.PuzzleID); err != nil {
+			return errors.Wrap(err, "failed to add solved puzzle")
+		}
+	}
+
 	return nil
 }
 

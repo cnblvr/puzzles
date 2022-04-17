@@ -19,6 +19,7 @@
         .notification.warning { color: white; background-color: #fd6800; }
         .notification.success { color: white; background-color: #35901d; }
 
+        .non-select { user-select: none; }
         header { display: flex; justify-content: space-between; align-items: center;
             width: 100%; flex-wrap: wrap; }
         header, footer { background-color: #b0f0b0; }
@@ -36,8 +37,8 @@
         .form button { padding: 3px 10px; }
         .form .error { color: #c70000; }
         ul.list { display: flex; flex-direction: column; width: 100%; }
-        ul.list li { display: flex; flex-direction: row; margin: 7px 0; }
-        ul.list.checkbox li input { display: block; }
+        ul.list li { display: flex; flex-direction: row; align-items: center; margin-top: 7px; }
+        ul.list.checkbox li input { display: block; margin: 5px 5px; }
         ul.list.checkbox li label { display: block; }
         ul.list li.keyvalue { align-items: center; }
         ul.list li.keyvalue label { margin-right: 10px; white-space: nowrap; }

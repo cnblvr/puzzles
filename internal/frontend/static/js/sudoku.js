@@ -8,6 +8,9 @@ class Sudoku {
     #ws;
     #cndMode = false;
 
+    #_option_useHighlights = undefined;
+    #_option_useCandidates = undefined;
+
     constructor(param) {
         if (!param)
             throw 'sudoku: parameters not defined';
@@ -28,6 +31,38 @@ class Sudoku {
                 this.#_keyboard = document.querySelector(param.keyboardSelector);
                 if (!this.#_keyboard)
                     throw 'sudoku: object by parameter \'keyboardSelector\' not found';
+            }
+        }
+        if (param.options) {
+            if (param.options.useHighlights) {
+                this.#_option_useHighlights = document.querySelector(param.options.useHighlights);
+                if (!this.#_option_useHighlights)
+                    throw 'sudoku: object by parameter \'options.useHighlights\' not found';
+                this.#_option_useHighlights.addEventListener('change', (e) => {
+                    this.#ws.send('setUserPreferences', { use_highlights: e.currentTarget.checked });
+                    if (e.currentTarget.checked) {
+                        let _active = this.#_object.querySelector('.sud-cll.active');
+                        if (!_active) return;
+                        this.#_setHighlights(_active.querySelector('.sud-dgt').textContent, _active);
+                    } else {
+                        this.#_resetHighlights();
+                    }
+                });
+            }
+            if (param.options.useCandidates) {
+                this.#_option_useCandidates = document.querySelector(param.options.useCandidates);
+                if (!this.#_option_useCandidates)
+                    throw 'sudoku: object by parameter \'options.useCandidates\' not found';
+                if (this.#_isUseCandidates()) this.#_object.classList.remove('hide-candidates');
+                else this.#_object.classList.add('hide-candidates');
+                this.#_option_useCandidates.addEventListener('change', (e) => {
+                    this.#ws.send('setUserPreferences', { use_candidates: e.currentTarget.checked });
+                    if (e.currentTarget.checked) {
+                        this.#_object.classList.remove('hide-candidates');
+                    } else {
+                        this.#_object.classList.add('hide-candidates');
+                    }
+                });
             }
         }
 
@@ -66,15 +101,16 @@ class Sudoku {
                 if (id) btn.id = id;
                 btn.addEventListener('click', event);
                 this.#_keyboard.appendChild(btn);
+                return btn;
             }
             createBtn( 'c', (e) => {
                 this.#toggleCandidateMode();
-            }, 'cnd-mode');
+            }, 'cnd-mode').title = 'press [C] to switch mode; press [Shift]+[digit] to set the candidate';
             createBtn( '⨯', (e) => {
                 this.#cndMode?
                     this.#toggleCandidateInActive('0'):
                     this.#placeDigitInActive('0');
-            });
+            }).title = 'press [Backspace], [Space] or [0] to remove the digit; press [Shift]+[one of the previous keys] to remove all candidates';
             for (let digit = 1; digit <= 9; digit++) {
                 createBtn(digit, (e) => {
                     this.#cndMode?
@@ -120,16 +156,26 @@ class Sudoku {
                             this.#toggleCandidateInActive('0'):
                             this.#placeDigitInActive('0');
                         break;
+                    case 'KeyC':
+                        this.#toggleCandidateMode();
+                        break;
                     case 'ShiftLeft':
                     case 'ShiftRight':
                         this.#toggleCandidateMode(false);
                         break;
                 }
-                if ('Digit1' <= e.code && e.code <= 'Digit9') {
-                    this.#cndMode?
-                        this.#toggleCandidateInActive(e.code.replace('Digit', '')):
-                        this.#placeDigitInActive(e.key);
+                let digit = undefined;
+                switch (true) {
+                case 'Digit1' <= e.code && e.code <= 'Digit9':
+                    digit = e.code.replace('Digit', '');
+                    break
+                case 'Numpad1' <= e.code && e.code <= 'Numpad9':
+                    digit = e.code.replace('Numpad', '');
+                    break;
                 }
+                if (digit) this.#cndMode?
+                    this.#toggleCandidateInActive(digit):
+                    this.#placeDigitInActive(e.key);
             });
         }
 
@@ -152,8 +198,8 @@ class Sudoku {
                         if (body.puzzle[row * 9 + col] !== '.')
                             _cell.classList.add('hint');
                     }
-                    if (candidates) {
-                        this.#setCandidatesFor(_cell, candidates[this.#stringifyPoint(row, col)]);
+                    if (candidates.base) {
+                        this.#setCandidatesFor(_cell, candidates.base[this.#stringifyPoint(row, col)]);
                     }
                 });
             });
@@ -197,6 +243,7 @@ class Sudoku {
             _digit.textContent = digit;
             _cell.classList.add('is-dgt');
         }
+        if (!notMakeStep) this.#_setHighlights(_cell.querySelector('.sud-dgt').textContent, _cell);
         let point = this.#stringifyPoint(this.#getIndex(_cell.parentElement), this.#getIndex(_cell));
         if (!notMakeStep && oldDigit !== digit) this.#apiMakeStep(digit === '0'?'del_digit':'set_digit', point, digit);
     }
@@ -204,6 +251,10 @@ class Sudoku {
     #placeDigitInActive(digit, notMakeStep) {
         if (this.#isWin) return;
         this.#placeDigit(this.#_object.querySelector('.sud-cll.active'), digit, notMakeStep);
+    }
+
+    #_isUseCandidates() {
+        return !!(this.#_option_useCandidates && this.#_option_useCandidates.checked);
     }
 
     #setCandidatesFor(_cell, cands) {
@@ -245,7 +296,40 @@ class Sudoku {
         this.#_object.querySelectorAll('.sud-cll.active').forEach((_active) => {
             _active.classList.remove('active');
         });
-        if (!isAlready) _cell.classList.add('active');
+        if (!isAlready) {
+            _cell.classList.add('active');
+            this.#_setHighlights(_cell.querySelector('.sud-dgt').textContent, _cell);
+        } else this.#_resetHighlights();
+    }
+
+    #_isUseHighlights() {
+        return !!(this.#_option_useHighlights && this.#_option_useHighlights.checked);
+    }
+
+    #_resetHighlights() {
+        this.#_object.querySelectorAll('.sud-cll').forEach((_cell) => {
+            _cell.classList.remove('hl');
+            _cell.querySelectorAll('.sud-cnd div').forEach((_cnd) => {
+                _cnd.classList.remove('hl');
+            });
+        });
+    }
+
+    #_setHighlights(digit, exclude) {
+        this.#_resetHighlights();
+        if (!this.#_isUseHighlights()) return;
+        if (!digit || digit === '') return;
+        this.#_object.querySelectorAll('.sud-cll').forEach((_cell) => {
+            if (exclude === _cell) return;
+            let dhl = _cell.querySelector('.sud-dgt').textContent;
+            if (dhl === '') {
+                _cell.querySelectorAll('.sud-cnd div').forEach((_cnd) => {
+                    if (_cnd.textContent === digit) _cnd.classList.add('hl');
+                });
+            } else if (dhl === digit) {
+                _cell.classList.add('hl');
+            }
+        });
     }
 
     #toggleCandidateMode(state) {
@@ -273,6 +357,7 @@ class Sudoku {
                 _cnd.classList.add('hidden');
                 this.#apiMakeStep('del_cand', point, digit);
             }
+            this.#_setHighlights(digit, undefined);
         });
     }
 
@@ -299,8 +384,8 @@ class Sudoku {
                         _cell.classList.add('error');
                     }
                 });
-                if (errorsCandidates) {
-                    let candidates = errorsCandidates[this.#stringifyPoint(row, col)];
+                if (errorsCandidates.base) {
+                    let candidates = errorsCandidates.base[this.#stringifyPoint(row, col)];
                     if (candidates) {
                         candidates.forEach((cand) => {
                             _cell.querySelectorAll('.sud-cnd div')[cand - 1].classList.add('error');

@@ -1,25 +1,15 @@
 {{define "page_home"}}{{template "header" .Header}}{{$uPref := .Data.UserPreferences}}
-<form action="/" method="post" autocomplete="off" class="form center">
+<form action="/" method="post" autocomplete="off" class="form center non-select">
     <ul class="list">
         <li class="keyvalue">
             <label for="puzzle_type">Choose a puzzle:</label>
-                <select name="puzzle_type" id="puzzle_type">{{range $type := dict
-                    "sudoku_classic" (kv "Sudoku Classic" false)
-                    "jigsaw" (kv "Jigsaw" true)
-                    "windoku" (kv "Windoku" true)
-                    "sudoku_x" (kv "Sudoku X" true)
-                    "kakuro" (kv "Kakuro" true)
-                }}{{$id := $type.Key}}{{$name := $type.Val.Key}}{{$disabled := $type.Val.Val}}
-                <option value="{{$id}}"{{if $disabled}} disabled="disabled"{{end}}>{{$name}}</option>{{end}}
-            </select>
-        </li>
-        <li class="row">{{range $level := dict
-            "easy" "Easy"
-            "medium" "Medium"
-            "hard" "Hard"
-        }}{{$id := $level.Key}}{{$name := $level.Val}}{{$checked := eq $id "medium"}}{{with $uPref}}{{$checked = eq $id $uPref.PuzzleLevel}}{{end}}
-            <input type="radio" name="puzzle_level" value="{{$id}}" id="puzzle_level_{{$id}}" hidden="hidden"{{if $checked}} checked="checked"{{end}}>
-            <label class="radio" for="puzzle_level_{{$id}}">{{$name}}</label>{{end}}
+                <select name="puzzle_type" id="puzzle_type">{{range $type := .Data.PuzzleTypes}}
+                    <option value="{{$type.ID}}"{{if $type.Disabled}} disabled="disabled"{{end}}>{{$type.Name}}</option>{{end}}
+                </select>
+            </li>
+        <li class="row">{{range $level := .Data.PuzzleLevels}}{{$checked := $level.Default}}{{with $uPref}}{{$checked = eq $level.ID $uPref.PuzzleLevel}}{{end}}{{if not $level.Disabled}}
+            <input type="radio" name="puzzle_level" value="{{$level.ID}}" id="puzzle_level_{{$level.ID}}" hidden="hidden"{{if $checked}} checked="checked"{{end}}>
+            <label class="radio" for="puzzle_level_{{$level.ID}}">{{$level.Name}}</label>{{end}}{{end}}
         </li>
     </ul>
     <ul class="list checkbox">

@@ -30,10 +30,11 @@ func (r websocketGetPuzzleRequest) Validate(ctx context.Context) error {
 }
 
 func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketResponse, error) {
-	srv := FromContextServiceFrontendOrNil(ctx)
+	srv, log := FromContextServiceFrontendOrNil(ctx), FromContextLogger(ctx)
 
 	puzzle, game, err := srv.puzzleRepository.GetPuzzleAndGame(ctx, r.GameID)
 	if err != nil {
+		log.Error().Err(err).Send()
 		return websocketGetPuzzleResponse{}, fmt.Errorf("internal server error")
 	}
 
@@ -47,8 +48,9 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 		resp.Candidates = json.RawMessage(puzzle.Candidates)
 	}
 
-	statePuzzle, err := puzzle_library.GetAssistant(puzzle.Type, resp.StatePuzzle)
+	statePuzzle, err := puzzle_library.GetAssistant(puzzle.Type, resp.Puzzle)
 	if err != nil {
+		log.Error().Err(err).Send()
 		return websocketMakeStepResponse{}, fmt.Errorf("internal server error")
 	}
 
@@ -57,6 +59,7 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 		game.State = puzzle.Clues
 		game.StateCandidates = string(resp.StateCandidates)
 		if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
+			log.Error().Err(err).Send()
 			return websocketGetPuzzleResponse{}, fmt.Errorf("internal server error")
 		}
 	} else {
@@ -65,6 +68,7 @@ func (r websocketGetPuzzleRequest) Execute(ctx context.Context) (websocketRespon
 		resp.Errors = statePuzzle.GetWrongPoints()
 		wrongCandidates, err := statePuzzle.GetWrongCandidates(game.StateCandidates)
 		if err != nil {
+			log.Error().Err(err).Send()
 			return websocketGetPuzzleResponse{}, fmt.Errorf("bad request")
 		}
 		resp.ErrorsCandidates = json.RawMessage(wrongCandidates)

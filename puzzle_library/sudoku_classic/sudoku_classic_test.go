@@ -574,7 +574,7 @@ func TestPuzzle_GenerateLogic(t *testing.T) {
 	strategies := level.Strategies()
 
 	for i := 0; i < 500; i++ {
-		p, seed := NewRandomSolution()
+		p, seed := SudokuClassic{}.NewRandomSolution()
 		gotStrategies, err := p.GenerateLogic(seed, strategies)
 		if err != nil {
 			t.Fatal(err)
@@ -590,6 +590,13 @@ func TestPuzzle_GenerateLogic(t *testing.T) {
 		if wrongs := p.GetWrongPoints(); len(wrongs) > 0 {
 			t.Errorf("is not solved. wrongs: %v", wrongs)
 		}
+	}
+}
+
+func TestPuzzle_isSolved(t *testing.T) {
+	p := puzzle{}
+	if p.isSolved() {
+		t.Fatal("not solved")
 	}
 }
 
@@ -761,6 +768,12 @@ func TestSolve(t *testing.T) {
 			name:  "Strategy Lesson X-Wing #6",
 			p:     ".1..37..........1.6....8.29.7..496..1.......3..935..7.39.2....8.4..........79..6.",
 			wantP: "812937546934625817657418329273149685165872493489356271391264758746581932528793164",
+		},
+
+		// generated harder
+		{
+			name: "harder",
+			p:    ".1..3.9.......26.59...15....2....37.1.4....2...9.....47...615..2.1..3.9....7.....",
 		},
 	}
 	for _, tt := range tests {

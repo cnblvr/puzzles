@@ -43,6 +43,10 @@
 .sud-cll.active {
     background: #d0d0d0 !important;
 }
+.sud-cll.hl, .sud-cnd>div.hl {
+    /* highlight */
+    background-color: rgba(176, 240, 176, 0.5) !important;
+}
 .sud-cll.hint {
     background: #f4f4f4;
 }
@@ -75,6 +79,9 @@
     display: flex;
     justify-content: center;
     align-items: center;
+}
+.sudoku.hide-candidates .sud-cnd div {
+    opacity: 0;
 }
 .sud-cnd div.hidden {
     opacity: 0;
