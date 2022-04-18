@@ -6,6 +6,7 @@
 }}{{$useCandidates = $uPref.UseCandidates
 }}{{end}}
 <section id="sec-game"><div id="game-board"></div><div id="keyboard"></div></section><p id="_game_id" hidden>{{.Data.GameID}}</p>
+<p id="sudokuHint"></p>
 <ul class="list checkbox">
     <li>
         <input type="checkbox" id="option_use_highlights"{{if $useHighlights}} checked="checked"{{end}}>
@@ -23,6 +24,7 @@
             allowEditing: true,
             keyboardSelector: '#keyboard',
             gameID: document.querySelector('#_game_id').textContent,
+            hintSelector: '#sudokuHint',
             options: {
                 useHighlights: '#option_use_highlights',
                 useCandidates: '#option_use_candidates'

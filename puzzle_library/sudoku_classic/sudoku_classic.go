@@ -365,7 +365,7 @@ func (p *puzzle) Solve(candidatesIn string, chanSteps chan<- app.PuzzleStep, str
 		if err != nil {
 			return
 		}
-		p.optimizeCandidates(candidates)
+		p.optimizeCandidates(&candidates)
 	}
 	defer func(candidates puzzleCandidates) {
 		candidatesOut = candidates.encode()
@@ -383,7 +383,7 @@ func (p *puzzle) SolveOneStep(candidatesIn string, strategies app.PuzzleStrategy
 		if err != nil {
 			return
 		}
-		p.optimizeCandidates(candidates)
+		p.optimizeCandidates(&candidates)
 	}
 	candidatesBase = candidates.clone()
 	defer func(candidates puzzleCandidates) {

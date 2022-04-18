@@ -7,6 +7,7 @@ class Sudoku {
     #gameID;
     #ws;
     #cndMode = false;
+    #_hint = undefined;
 
     #_option_useHighlights = undefined;
     #_option_useCandidates = undefined;
@@ -32,6 +33,11 @@ class Sudoku {
                 if (!this.#_keyboard)
                     throw 'sudoku: object by parameter \'keyboardSelector\' not found';
             }
+        }
+        if (param.hintSelector) {
+            this.#_hint = document.querySelector(param.hintSelector);
+            if (!this.#_hint)
+                throw 'sudoku: object by parameter \'hintSelector\' not found';
         }
         if (param.options) {
             if (param.options.useHighlights) {
@@ -117,6 +123,14 @@ class Sudoku {
                         this.#toggleCandidateInActive(''+digit):
                         this.#placeDigitInActive(''+digit);
                 });
+            }
+            if (this.#_hint) {
+                createBtn('h', (e) => {
+                    if (this.#isWin) return;
+                    this.#ws.send('getHint', {
+                        game_id: this.#gameID,
+                    });
+                }).title = 'use this button to get a hint if you don\'t known how to proceed';
             }
         }
 
@@ -220,6 +234,54 @@ class Sudoku {
             }
             this.#setErrors(body.errors, body.errorsCandidates);
         });
+
+        this.#_object.addEventListener('api_getHint', (e) => {
+            let body = e.detail.body;
+            if (body.strategy) {
+                let url = undefined, paragraph = undefined;
+                switch (body.strategy) {
+                    case 'Naked Single':
+                    case 'Hidden Single':
+                        url = 'https://www.sudokuwiki.org/Getting_Started'; break;
+                    case 'Naked Pair': url = 'https://www.sudokuwiki.org/Naked_Candidates'; paragraph = 'Naked Pairs'; break;
+                    case 'Naked Triple': url = 'https://www.sudokuwiki.org/Naked_Candidates#NT'; paragraph = 'Naked Triples'; break;
+                    case 'Naked Quad': url = 'https://www.sudokuwiki.org/Naked_Candidates#NQ'; paragraph = 'Naked Quads'; break;
+                    case 'Hidden Pair': url = 'https://www.sudokuwiki.org/Hidden_Candidates'; paragraph = 'Hidden Pairs'; break;
+                    case 'Hidden Triple': url = 'https://www.sudokuwiki.org/Hidden_Candidates#HT'; paragraph = 'Hidden Triples'; break;
+                    case 'Hidden Quad': url = 'https://www.sudokuwiki.org/Hidden_Candidates#HQ'; paragraph = 'Hidden Quads'; break;
+                    case 'Pointing Pair':
+                    case 'Pointing Triple':
+                        url = 'https://www.sudokuwiki.org/Intersection_Removal';
+                        paragraph = 'Pointing Pairs, Pointing Triples'; break;
+                    case 'Box/Line Reduction Pair':
+                    case 'Box/Line Reduction Triple':
+                        url = 'https://www.sudokuwiki.org/Intersection_Removal';
+                        paragraph = 'Box Line Reduction'; break;
+                    case 'X-Wing':
+                        url = 'https://www.sudokuwiki.org/X_Wing_Strategy'; break;
+                }
+                if (url) {
+                    let msg = 'Try to use the ';
+                    if (paragraph) msg += ' \''+ body.strategy +'\' strategy in <a href="' + url + '" target="_blank">§' + paragraph + '</a>.';
+                    else msg += ' <a href="' + url + '" target="_blank">' + body.strategy + '</a> strategy.'
+                    this._showHint(msg);
+                }
+            }
+        });
+    }
+
+    #hintTimeout = undefined;
+    _showHint(hintMsg) {
+        if (!this.#_hint) return;
+        if (this.#hintTimeout) clearTimeout(this.#hintTimeout);
+        this.#_hint.innerHTML = hintMsg;
+        let _hint = this.#_hint;
+        let fn = (opacity) => {
+            _hint.style.opacity = opacity;
+            if (opacity < 0) { _hint.textContent = ''; return; }
+            this.#hintTimeout = setTimeout(fn, 100, opacity-0.005);
+        };
+        this.#hintTimeout = setTimeout(fn, 100, 1.0);
     }
 
     dispatchEvent(ce) {

@@ -15,11 +15,13 @@ import (
 type service struct {
 	config           app.Config
 	puzzleRepository app.PuzzleRepository
+	rnd              *rand.Rand
 }
 
 func NewService() (app.ServiceGenerator, error) {
 	srv := &service{
 		config: app.NewConfig(),
+		rnd:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 
 	var err error
@@ -47,7 +49,7 @@ func (srv *service) Run() error {
 			app.PuzzleLevelEasy, app.PuzzleLevelNormal, app.PuzzleLevelHard, app.PuzzleLevelHarder,
 		} {
 			for {
-				if gotLevel, err := srv.GeneratePuzzle(app.PuzzleSudokuClassic, rand.Int63(), level); err != nil {
+				if gotLevel, err := srv.GeneratePuzzle(app.PuzzleSudokuClassic, srv.rnd.Int63(), level); err != nil {
 					log.Error().Err(err).Msg("GeneratePuzzle failed")
 					time.Sleep(time.Second)
 				} else if gotLevel != level {
@@ -56,9 +58,9 @@ func (srv *service) Run() error {
 					break
 				}
 			}
-			if level == app.PuzzleLevelHarder {
-				log.Fatal().Send()
-			}
+			//if level == app.PuzzleLevelHarder {
+			//	log.Fatal().Send()
+			//}
 		}
 	}
 }

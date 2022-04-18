@@ -133,7 +133,7 @@ func (p puzzle) findSimpleCandidates() puzzleCandidates {
 	return candidates
 }
 
-func (p puzzle) optimizeCandidates(c puzzleCandidates) {
+func (p puzzle) optimizeCandidates(c *puzzleCandidates) {
 	p.forEach(func(point app.Point, val uint8, _ *bool) {
 		if val > 0 {
 			c[point.Row][point.Col] = newCellCandidatesEmpty()

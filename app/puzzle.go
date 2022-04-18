@@ -55,6 +55,7 @@ type PuzzleAssistant interface {
 	GetWrongPoints() []Point
 	GetWrongCandidates(candidates string) (string, error)
 	MakeUserStep(candidatesIn string, step PuzzleUserStep) (candidatesOut string, wrongCandidates string, err error)
+	SolveOneStep(candidatesIn string, strategies PuzzleStrategy) (candidatesChanges string, step PuzzleStep, err error)
 	//GetCandidates(ctx context.Context, clues string) string
 	//FindUserErrors(ctx context.Context, userState string) []Point
 	//FindUserCandidatesErrors(ctx context.Context, state string, stateCandidates string) string
