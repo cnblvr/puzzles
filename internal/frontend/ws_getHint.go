@@ -24,19 +24,18 @@ func (r *wsGetHintRequest) Execute(ctx context.Context) (wsIncomingReply, app.St
 
 	statePuzzle, err := srv.puzzleLibrary.GetAssistant(r.puzzle.Type, r.game.State)
 	if err != nil {
-		return nil, app.StatusInternalServerError.WithError(errors.WithStack(err))
+		return nil, app.StatusBadRequest.WithError(errors.WithStack(err))
 	}
 
 	_, step, err := statePuzzle.SolveOneStep(r.game.StateCandidates, r.puzzle.Level.Strategies())
 	if err != nil {
-		return nil, app.StatusUnknown.WithMessage("TODO").WithError(errors.New("TODO failed to solve"))
+		return nil, app.StatusUnknown.WithMessage("TODO").WithError(errors.New("TODO failed to solve")) // TODO
 	}
 	rpl.Strategy = step.Strategy().String()
 
 	return rpl, nil
 }
 
-// TODO handle and test
 type wsGetHintReply struct {
 	Strategy string `json:"strategy,omitempty"`
 }

@@ -33,7 +33,7 @@ func (r *wsGetPuzzleRequest) Execute(ctx context.Context) (wsIncomingReply, app.
 
 	statePuzzle, err := srv.puzzleLibrary.GetAssistant(r.puzzle.Type, rpl.Puzzle)
 	if err != nil {
-		return nil, app.StatusInternalServerError.WithError(errors.WithStack(err))
+		return nil, app.StatusBadRequest.WithError(errors.WithStack(err))
 	}
 
 	if r.game.IsNew {

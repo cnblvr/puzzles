@@ -37,14 +37,14 @@ type status struct {
 	err  error
 }
 
-func (s *status) WithMessage(msg string) Status {
+func (s status) WithMessage(msg string) Status {
 	s.msg = msg
-	return s
+	return &s
 }
 
-func (s *status) WithError(err error) Status {
+func (s status) WithError(err error) Status {
 	s.err = err
-	return s
+	return &s
 }
 
 func (s status) Error() string {
@@ -74,32 +74,32 @@ func (s status) GetCode() uint16 {
 
 type statusCode uint16
 
-func (s statusCode) WithMessage(msg string) Status {
+func (i statusCode) WithMessage(msg string) Status {
 	return &status{
-		code: s,
+		code: i,
 		msg:  msg,
 	}
 }
 
-func (s statusCode) WithError(err error) Status {
+func (i statusCode) WithError(err error) Status {
 	return &status{
-		code: s,
+		code: i,
 		err:  err,
 	}
 }
 
-func (s statusCode) Error() string {
-	return fmt.Sprintf("status %d: %s", s, s.String())
+func (i statusCode) Error() string {
+	return fmt.Sprintf("status %d: %s", i, i.String())
 }
 
-func (s statusCode) GetError() error {
+func (i statusCode) GetError() error {
 	return nil
 }
 
-func (s statusCode) GetMessage() string {
+func (i statusCode) GetMessage() string {
 	return ""
 }
 
-func (s statusCode) GetCode() uint16 {
-	return uint16(s)
+func (i statusCode) GetCode() uint16 {
+	return uint16(i)
 }

@@ -30,7 +30,7 @@ func (r *wsMakeStepRequest) Execute(ctx context.Context) (wsIncomingReply, app.S
 
 	statePuzzle, err := srv.puzzleLibrary.GetAssistant(r.puzzle.Type, r.game.State)
 	if err != nil {
-		return nil, app.StatusInternalServerError.WithError(errors.WithStack(err))
+		return nil, app.StatusBadRequest.WithError(errors.WithStack(err))
 	}
 
 	newStateCandidates, wrongCandidates, err := statePuzzle.MakeUserStep(r.game.StateCandidates, r.Step)
