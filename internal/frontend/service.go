@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"github.com/cnblvr/puzzles/app"
 	"github.com/cnblvr/puzzles/internal/frontend/templates"
+	"github.com/cnblvr/puzzles/puzzle_library"
 	"github.com/cnblvr/puzzles/repository"
 	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/securecookie"
@@ -22,6 +23,7 @@ type service struct {
 	templates        *template.Template
 	userRepository   app.UserRepository
 	puzzleRepository app.PuzzleRepository
+	puzzleLibrary    app.PuzzleLibrary
 	gameWebsocket    websocket.Upgrader
 	secCookie        *securecookie.SecureCookie
 	passwordPepper   []byte
@@ -67,6 +69,8 @@ func NewService() (app.ServiceFrontend, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create puzzle game repository")
 	}
+
+	srv.puzzleLibrary = &puzzle_library.PuzzleLibrary{}
 
 	srv.gameWebsocket = websocket.Upgrader{}
 

@@ -5,7 +5,9 @@ import (
 	"github.com/cnblvr/puzzles/puzzle_library/sudoku_classic"
 )
 
-func GetCreator(typ app.PuzzleType) (app.PuzzleCreator, error) {
+type PuzzleLibrary struct{}
+
+func (PuzzleLibrary) GetCreator(typ app.PuzzleType) (app.PuzzleCreator, error) {
 	switch typ {
 	case app.PuzzleSudokuClassic:
 		return sudoku_classic.SudokuClassic{}, nil
@@ -14,7 +16,7 @@ func GetCreator(typ app.PuzzleType) (app.PuzzleCreator, error) {
 	}
 }
 
-func GetGenerator(typ app.PuzzleType, puzzle string) (app.PuzzleGenerator, error) {
+func (PuzzleLibrary) GetGenerator(typ app.PuzzleType, puzzle string) (app.PuzzleGenerator, error) {
 	switch typ {
 	case app.PuzzleSudokuClassic:
 		return sudoku_classic.ParseGenerator(puzzle)
@@ -23,7 +25,7 @@ func GetGenerator(typ app.PuzzleType, puzzle string) (app.PuzzleGenerator, error
 	}
 }
 
-func GetAssistant(typ app.PuzzleType, puzzle string) (app.PuzzleAssistant, error) {
+func (PuzzleLibrary) GetAssistant(typ app.PuzzleType, puzzle string) (app.PuzzleAssistant, error) {
 	switch typ {
 	case app.PuzzleSudokuClassic:
 		return sudoku_classic.ParseAssistant(puzzle)

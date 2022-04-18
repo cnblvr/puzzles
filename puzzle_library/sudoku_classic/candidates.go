@@ -90,20 +90,20 @@ func (c puzzleCandidates) encodeOnlyChanges(base puzzleCandidates) string {
 func decodeCandidates(s string) (puzzleCandidates, error) {
 	in := puzzleCandidatesExternal{}
 	if err := json.Unmarshal([]byte(s), &in); err != nil {
-		return puzzleCandidates{}, err
+		return puzzleCandidates{}, errors.Wrap(err, "decode candidates error")
 	}
 	c := newPuzzleCandidates(false)
 	for pointStr, candidates := range in.Base {
 		point, err := app.PointFromString(pointStr)
 		if err != nil {
-			return puzzleCandidates{}, errors.Wrapf(err, "failed to parse point '%s'", pointStr)
+			return puzzleCandidates{}, errors.Wrapf(err, "decode candidates error: point '%s'", pointStr)
 		}
 		if point.Row >= size || point.Col >= size {
-			return puzzleCandidates{}, errors.Errorf("failed to parse point '%s': invalid format", pointStr)
+			return puzzleCandidates{}, errors.Errorf("decode candidates error: wrong point format '%s'", pointStr)
 		}
 		for _, candidate := range candidates {
 			if candidate < 1 || size < candidate {
-				return puzzleCandidates{}, errors.Errorf("failed to parse candidate '%d': invalid", candidate)
+				return puzzleCandidates{}, errors.Errorf("decode candidates error: wrong candidate '%d'", candidate)
 			}
 		}
 		c[point.Row][point.Col].addInt8(candidates...)

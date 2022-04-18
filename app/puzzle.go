@@ -32,6 +32,15 @@ type PuzzleRepository interface {
 	GetPuzzleAndGame(ctx context.Context, id uuid.UUID) (*Puzzle, *PuzzleGame, error)
 }
 
+type PuzzleLibrary interface {
+	// Errors: ErrorPuzzleTypeUnknown, unknown.
+	GetCreator(typ PuzzleType) (PuzzleCreator, error)
+	// Errors: ErrorPuzzleTypeUnknown, unknown.
+	GetGenerator(typ PuzzleType, puzzle string) (PuzzleGenerator, error)
+	// Errors: ErrorPuzzleTypeUnknown, unknown.
+	GetAssistant(typ PuzzleType, puzzle string) (PuzzleAssistant, error)
+}
+
 type CreateRandomPuzzleGameParams struct {
 	Session *Session
 	Type    PuzzleType
@@ -352,7 +361,7 @@ func (p Point) String() string {
 
 func PointFromString(s string) (Point, error) {
 	if len(s) < 2 {
-		return Point{}, fmt.Errorf("unknown format Point")
+		return Point{}, fmt.Errorf("wrong format Point")
 	}
 	p := Point{}
 
@@ -362,13 +371,13 @@ func PointFromString(s string) (Point, error) {
 	case 'A' <= ch && ch <= 'Z':
 		p.Row = int(ch) - 'A'
 	default:
-		return Point{}, fmt.Errorf("unknown format Point")
+		return Point{}, fmt.Errorf("wrong format Point")
 	}
 
 	var err error
 	p.Col, err = strconv.Atoi(s[1:])
 	if err != nil {
-		return Point{}, err
+		return Point{}, errors.Wrap(err, "wrong format Point")
 	}
 	p.Col--
 

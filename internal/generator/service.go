@@ -15,6 +15,7 @@ import (
 type service struct {
 	config           app.Config
 	puzzleRepository app.PuzzleRepository
+	puzzleLibrary    app.PuzzleLibrary
 	rnd              *rand.Rand
 }
 
@@ -39,6 +40,8 @@ func NewService() (app.ServiceGenerator, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create puzzle generator repository")
 	}
+
+	srv.puzzleLibrary = &puzzle_library.PuzzleLibrary{}
 
 	return srv, nil
 }
@@ -66,7 +69,7 @@ func (srv *service) Run() error {
 }
 
 func (srv *service) GeneratePuzzle(typ app.PuzzleType, seed int64, level app.PuzzleLevel) (app.PuzzleLevel, error) {
-	creator, err := puzzle_library.GetCreator(typ)
+	creator, err := srv.puzzleLibrary.GetCreator(typ)
 	if err != nil {
 		return app.PuzzleLevelUnknown, errors.WithStack(err)
 	}

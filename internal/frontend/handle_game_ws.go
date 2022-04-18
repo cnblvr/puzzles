@@ -3,16 +3,19 @@ package frontend
 import (
 	"context"
 	"encoding/json"
+	"github.com/cnblvr/puzzles/app"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/rs/zerolog/log"
+	"github.com/pkg/errors"
 	"net/http"
 )
 
 type websocketMessage struct {
-	Method string          `json:"method"`
-	Echo   string          `json:"echo,omitempty"`
-	Error  string          `json:"error,omitempty"`
-	Body   json.RawMessage `json:"body,omitempty"`
+	Method    string          `json:"method"`
+	Echo      string          `json:"echo,omitempty"`
+	Error     string          `json:"error,omitempty"`
+	ErrorCode uint16          `json:"errorCode,omitempty"`
+	Body      json.RawMessage `json:"body,omitempty"`
 }
 
 func (srv *service) HandleGameWs(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +65,14 @@ func (srv *service) HandleGameWs(w http.ResponseWriter, r *http.Request) {
 			Method: req.Method,
 			Echo:   req.Echo,
 		}
-		resp.Body, resp.Error = websocketRequestExecute(ctx, req.Method, req.Body)
+		resp.Body, err = websocketRequestExecute(ctx, req.Method, req.Body)
+		if err != nil {
+			if status, ok := err.(app.Status); ok {
+				resp.Error, resp.ErrorCode = status.GetMessage(), status.GetCode()
+			} else {
+				resp.Error, resp.ErrorCode = status.Error(), app.StatusUnknown.GetCode()
+			}
+		}
 		respBts, err := json.Marshal(resp)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to marshal response")
@@ -76,31 +86,62 @@ func (srv *service) HandleGameWs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func websocketRequestExecute(ctx context.Context, method string, reqBody []byte) ([]byte, string) {
-	reqObj, err := websocketPool.GetRequest(method)
+func websocketRequestExecute(ctx context.Context, method string, reqBody []byte) ([]byte, error) {
+	reqObj, err := wsGetIncoming(method)
 	if err != nil {
-		log.Warn().Err(err).Msg("failed to find request")
-		return nil, err.Error()
+		return nil, app.StatusMethodNotAllowed.WithError(errors.WithStack(err))
 	}
 	if len(reqBody) > 0 {
 		if err := json.Unmarshal(reqBody, reqObj); err != nil {
-			log.Warn().Err(err).Msg("failed to unmarshal body request")
-			return nil, "body invalid"
+			return nil, app.StatusBadRequest.WithError(errors.Wrapf(err, "failed to decode request"))
 		}
 	}
-	if err := reqObj.Validate(ctx); err != nil {
-		log.Error().Err(err).Msg("failed to validate")
-		return nil, err.Error()
+	if mw, ok := reqObj.(wsGameMiddlewareInterface); ok {
+		if status := mw.GameMiddleware(ctx); status != nil {
+			return nil, status
+		}
 	}
-	respObj, err := reqObj.Execute(ctx)
+	if status := reqObj.Validate(ctx); status != nil {
+		return nil, status
+	}
+	respObj, status := reqObj.Execute(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to execute")
-		return nil, err.Error()
+		return nil, status
 	}
 	respBody, err := json.Marshal(respObj)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to marshal body response")
-		return nil, "internal server error"
+		return nil, app.StatusInternalServerError.WithError(errors.WithStack(err))
 	}
-	return respBody, ""
+	return respBody, nil
+}
+
+type wsGameMiddleware struct {
+	GameID uuid.UUID `json:"game_id"`
+	puzzle *app.Puzzle
+	game   *app.PuzzleGame
+}
+
+type wsGameMiddlewareInterface interface {
+	GameMiddleware(ctx context.Context) app.Status
+}
+
+func (m *wsGameMiddleware) GameMiddleware(ctx context.Context) app.Status {
+	srv := FromContextServiceFrontendOrNil(ctx)
+	if m.GameID == uuid.Nil {
+		return app.StatusBadRequest.WithMessage("game_id is empty")
+	}
+
+	var err error
+	m.puzzle, m.game, err = srv.puzzleRepository.GetPuzzleAndGame(ctx, m.GameID)
+	switch {
+	case err == nil:
+	case errors.Is(err, app.ErrorPuzzleGameNotFound):
+		return app.StatusBadRequest.WithMessage("game not found").WithError(errors.WithStack(err))
+	case errors.Is(err, app.ErrorPuzzleNotFound):
+		return app.StatusBadRequest.WithMessage("game not found").WithError(errors.WithStack(err))
+	default:
+		return app.StatusInternalServerError.WithError(errors.WithStack(err))
+	}
+
+	return nil
 }
