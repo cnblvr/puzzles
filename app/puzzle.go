@@ -30,6 +30,9 @@ type PuzzleRepository interface {
 
 	// Errors: ErrorPuzzleGameNotFound, ErrorPuzzleNotFound, unknown.
 	GetPuzzleAndGame(ctx context.Context, id uuid.UUID) (*Puzzle, *PuzzleGame, error)
+
+	// it's sloooooowly (maybe)
+	GetAmountUnsolvedPuzzlesForAllUsers(ctx context.Context, typ PuzzleType, level PuzzleLevel) (int, error)
 }
 
 type PuzzleLibrary interface {
@@ -262,6 +265,17 @@ func (t PuzzleType) String() string {
 	return string(t)
 }
 
+func PuzzleTypeLess(i, j PuzzleType) bool {
+	list := map[PuzzleType]int{
+		PuzzleSudokuClassic: 0,
+		PuzzleJigsaw:        1,
+		PuzzleWindoku:       2,
+		PuzzleSudokuX:       3,
+		PuzzleKakuro:        4,
+	}
+	return list[i] < list[j]
+}
+
 type PuzzleLevel string
 
 const (
@@ -278,6 +292,18 @@ const (
 
 func (l PuzzleLevel) String() string {
 	return string(l)
+}
+
+func PuzzleLevelLess(i, j PuzzleLevel) bool {
+	list := map[PuzzleLevel]int{
+		PuzzleLevelEasy:   0,
+		PuzzleLevelNormal: 1,
+		PuzzleLevelHard:   2,
+		PuzzleLevelHarder: 3,
+		PuzzleLevelInsane: 4,
+		PuzzleLevelDemon:  5,
+	}
+	return list[i] < list[j]
 }
 
 func (l PuzzleLevel) Strategies() PuzzleStrategy {

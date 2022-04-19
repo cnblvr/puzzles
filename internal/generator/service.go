@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	"fmt"
 	"github.com/cnblvr/puzzles/app"
 	"github.com/cnblvr/puzzles/puzzle_library"
 	"github.com/cnblvr/puzzles/repository"
@@ -9,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"math/rand"
+	"sort"
 	"time"
 )
 
@@ -46,25 +48,64 @@ func NewService() (app.ServiceGenerator, error) {
 	return srv, nil
 }
 
+// Amount of unsolved puzzles each type and each level in the pool for all users:
+//  size ( complement (
+//    all puzzles X type and Y level,
+//    union (
+//      solvedPuzzles(for 1st user),
+//      solvedPuzzles(for 2nd user),
+//      ...
+//    )
+//  ) ) >= needPuzzlesUnsolved => it's cool
+const needPuzzlesUnsolved = 5
+
 func (srv *service) Run() error {
 	for {
-		for _, level := range []app.PuzzleLevel{
-			app.PuzzleLevelEasy, app.PuzzleLevelNormal, app.PuzzleLevelHard, app.PuzzleLevelHarder,
-		} {
-			for {
-				if gotLevel, err := srv.GeneratePuzzle(app.PuzzleSudokuClassic, srv.rnd.Int63(), level); err != nil {
-					log.Error().Err(err).Msg("GeneratePuzzle failed")
+		type needPuzzle struct {
+			typ   app.PuzzleType
+			level app.PuzzleLevel
+			need  int
+		}
+		var needPuzzles []needPuzzle
+		for _, typ := range []app.PuzzleType{app.PuzzleSudokuClassic} {
+			for _, level := range []app.PuzzleLevel{
+				app.PuzzleLevelEasy, app.PuzzleLevelNormal, app.PuzzleLevelHard, app.PuzzleLevelHarder,
+			} {
+				currentNum, err := srv.puzzleRepository.GetAmountUnsolvedPuzzlesForAllUsers(context.TODO(), app.PuzzleSudokuClassic, level)
+				if err != nil {
+					log.Error().Err(err).Msg("PuzzleRepository.GetAmountUnsolvedPuzzlesForAllUsers() failed")
 					time.Sleep(time.Second)
-				} else if gotLevel != level {
-					log.Info().Stringer("want_level", level).Stringer("got_level", gotLevel).Msg("regenerate want level")
-				} else {
-					break
+				}
+				if currentNum < needPuzzlesUnsolved {
+					needPuzzles = append(needPuzzles, needPuzzle{
+						typ:   typ,
+						level: level,
+						need:  needPuzzlesUnsolved - currentNum,
+					})
 				}
 			}
-			//if level == app.PuzzleLevelHarder {
-			//	log.Fatal().Send()
-			//}
 		}
+		sort.Slice(needPuzzles, func(i, j int) bool {
+			if needPuzzles[i].typ == needPuzzles[j].typ {
+				return app.PuzzleLevelLess(needPuzzles[i].level, needPuzzles[j].level)
+			}
+			return app.PuzzleTypeLess(needPuzzles[i].typ, needPuzzles[j].typ)
+		})
+		log.Debug().Msgf("%+v", needPuzzles)
+		for _, need := range needPuzzles {
+			for idx := 1; idx <= need.need; {
+				if gotLevel, err := srv.GeneratePuzzle(need.typ, srv.rnd.Int63(), need.level); err != nil {
+					log.Error().Err(err).Msg("GeneratePuzzle() failed")
+				} else if gotLevel != need.level {
+					log.Debug().Stringer("want_level", need.level).Stringer("got_level", gotLevel).
+						Str("progress", fmt.Sprintf("%d/%d", idx, need.need)).
+						Msg("regenerate want level")
+				} else {
+					idx++
+				}
+			}
+		}
+		time.Sleep(time.Hour)
 	}
 }
 
@@ -75,34 +116,35 @@ func (srv *service) GeneratePuzzle(typ app.PuzzleType, seed int64, level app.Puz
 	}
 
 	puzzle := creator.NewSolutionBySeed(seed)
-
 	solution := puzzle.String()
 
 	strategies, err := puzzle.GenerateLogic(seed, level.Strategies())
 	if err != nil {
 		return app.PuzzleLevelUnknown, errors.Wrap(err, "failed to generate logic")
 	}
-	level = strategies.Level()
 
-	sudoku, err := srv.puzzleRepository.CreatePuzzle(context.TODO(), app.CreatePuzzleParams{
-		Type: creator.Type(),
-		GeneratedPuzzle: app.GeneratedPuzzle{
-			Seed:       seed,
-			Level:      level,
-			Meta:       "{}",
-			Clues:      puzzle.String(),
-			Candidates: puzzle.GetCandidates(),
-			Solution:   solution,
-		},
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("failed to create new puzzle in db")
-		return app.PuzzleLevelUnknown, err
+	gotLevel := strategies.Level()
+	if gotLevel == level {
+		sudoku, err := srv.puzzleRepository.CreatePuzzle(context.TODO(), app.CreatePuzzleParams{
+			Type: creator.Type(),
+			GeneratedPuzzle: app.GeneratedPuzzle{
+				Seed:       seed,
+				Level:      gotLevel,
+				Meta:       "{}",
+				Clues:      puzzle.String(),
+				Candidates: puzzle.GetCandidates(),
+				Solution:   solution,
+			},
+		})
+		if err != nil {
+			log.Error().Err(err).Msg("failed to create new puzzle in db")
+			return app.PuzzleLevelUnknown, err
+		}
+		log.Info().Int64("id", sudoku.ID).
+			Stringer("puzzle_type", creator.Type()).
+			Stringer("puzzle_level", gotLevel).
+			Msg("new puzzle created and saved")
 	}
-	log.Info().Int64("id", sudoku.ID).
-		Stringer("puzzle_type", creator.Type()).
-		Stringer("puzzle_level", level).
-		Msg("new puzzle created and saved")
 
-	return level, nil
+	return gotLevel, nil
 }

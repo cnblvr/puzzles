@@ -7,7 +7,9 @@ import (
 	"github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"strconv"
+	"time"
 )
 
 func NewRedisPuzzleRepository(dial func() (redis.Conn, error)) (app.PuzzleRepository, error) {
@@ -171,6 +173,50 @@ func (r *redisRepository) CreatePuzzle(ctx context.Context, params app.CreatePuz
 	}
 
 	return puzzle, nil
+}
+
+func (r *redisRepository) GetAmountUnsolvedPuzzlesForAllUsers(ctx context.Context, typ app.PuzzleType, level app.PuzzleLevel) (int, error) {
+	conn := r.connect()
+	defer conn.Close()
+
+	keyUnion := r.keyTemporary()
+
+	lastUserID, err := redis.Int64(conn.Do("GET", r.keyLastUserID()))
+	switch err {
+	case nil:
+		startTime := time.Now()
+		for userID := int64(1); userID <= lastUserID; userID++ {
+			if _, err := conn.Do("SUNIONSTORE", keyUnion, r.keyUserSolvedPuzzles(userID)); err != nil {
+				return 0, errors.Wrapf(err, "failed to union solved puzzles for user %d", userID)
+			}
+		}
+		log.Info().Str("duration", time.Since(startTime).String()).Msgf("SUNIONSTORE by all users")
+		defer func() {
+			if _, err := conn.Do("DEL", keyUnion); err != nil {
+				log.Warn().Err(err).Msg("failed to delete temporary key of union")
+			}
+		}()
+
+	case redis.ErrNil:
+
+	default:
+		return 0, errors.Wrap(err, "failed to get last user id")
+	}
+
+	startTime := time.Now()
+	keyDiff := r.keyTemporary()
+	size, err := redis.Int(conn.Do("SDIFFSTORE", keyDiff, r.keyPuzzleByTypeAndLevel(typ, level), keyUnion))
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to get complement of union in all puzzles")
+	}
+	log.Info().Str("duration", time.Since(startTime).String()).Msgf("SDIFFSTORE by all users")
+	defer func() {
+		if _, err := conn.Do("DEL", keyDiff); err != nil {
+			log.Warn().Err(err).Msg("failed to delete temporary key of complement")
+		}
+	}()
+
+	return size, nil
 }
 
 // Errors: app.ErrorPuzzleNotFound, unknown.
