@@ -31,7 +31,7 @@
             }
         });
         let ws = new WS({
-            url: 'ws://'+location.host+'/game_ws',
+            url: (location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/game_ws',
             debug: true,
             sudoku: s
         });
