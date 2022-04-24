@@ -1,4 +1,4 @@
-{{define "page_home"}}{{template "header" .Header}}{{$uPref := .Data.UserPreferences}}
+{{define "page_home"}}{{template "header" .Header}}
 <form action="/" method="post" autocomplete="off" class="form center non-select">
     <ul class="list">
         <li class="keyvalue">
@@ -7,14 +7,14 @@
                     <option value="{{$type.ID}}"{{if $type.Disabled}} disabled="disabled"{{end}}>{{$type.Name}}</option>{{end}}
                 </select>
             </li>
-        <li class="row">{{range $level := .Data.PuzzleLevels}}{{$checked := $level.Default}}{{with $uPref}}{{$checked = eq $level.ID $uPref.PuzzleLevel}}{{end}}{{if not $level.Disabled}}
+        <li class="row">{{range $level := .Data.PuzzleLevels}}{{$checked := $level.Default}}{{if not $level.Disabled}}
             <input type="radio" name="puzzle_level" value="{{$level.ID}}" id="puzzle_level_{{$level.ID}}" hidden="hidden"{{if $checked}} checked="checked"{{end}}>
             <label class="radio" for="puzzle_level_{{$level.ID}}">{{$level.Name}}</label>{{end}}{{end}}
         </li>
     </ul>
     <ul class="list checkbox">
         <li>
-            <input type="checkbox" id="candidates_at_start" name="candidates_at_start" value="true"{{with $uPref}}{{if $uPref.CandidatesAtStart}} checked="checked"{{end}}{{end}}>
+            <input type="checkbox" id="candidates_at_start" name="candidates_at_start" value="true"{{if .Data.CandidatesAtStart}} checked="checked"{{end}}>
             <label for="candidates_at_start">candidates at the start</label>
         </li>
     </ul>

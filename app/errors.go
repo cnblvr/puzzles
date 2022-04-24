@@ -78,12 +78,14 @@ func (i statusCode) WithMessage(msg string) Status {
 	return &status{
 		code: i,
 		msg:  msg,
+		err:  i,
 	}
 }
 
 func (i statusCode) WithError(err error) Status {
 	return &status{
 		code: i,
+		msg:  i.String(),
 		err:  err,
 	}
 }
@@ -97,7 +99,7 @@ func (i statusCode) GetError() error {
 }
 
 func (i statusCode) GetMessage() string {
-	return ""
+	return i.String()
 }
 
 func (i statusCode) GetCode() uint16 {

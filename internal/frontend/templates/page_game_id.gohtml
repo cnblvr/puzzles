@@ -1,20 +1,18 @@
-{{define "page_game_id"}}{{template "header" .Header}}{{
-    $useHighlights := false
-}}{{$useCandidates := true
-}}{{$uPref := .Data.UserPreferences}}{{with $uPref}}{{
-    $useHighlights = $uPref.UseHighlights
-}}{{$useCandidates = $uPref.UseCandidates
-}}{{end}}
+{{define "page_game_id"}}{{template "header" .Header}}
 <section id="sec-game"><div id="game-board"></div><div id="keyboard"></div></section><p id="_game_id" hidden>{{.Data.GameID}}</p>
 <p id="sudokuHint"></p>
 <ul class="list checkbox">
     <li>
-        <input type="checkbox" id="option_use_highlights"{{if $useHighlights}} checked="checked"{{end}}>
+        <input type="checkbox" id="option_use_highlights"{{if .Data.UseHighlights}} checked="checked"{{end}}>
         <label class="non-select" for="option_use_highlights">use highlights</label>
     </li>
     <li>
-        <input type="checkbox" id="option_use_candidates"{{if $useCandidates}} checked="checked"{{end}}>
-        <label class="non-select" for="option_use_candidates">use candidates</label>
+        <input type="checkbox" id="option_show_candidates"{{if .Data.ShowCandidates}} checked="checked"{{end}}>
+        <label class="non-select" for="option_show_candidates">show candidates</label>
+    </li>
+    <li>
+        <input type="checkbox" id="option_show_wrongs"{{if .Data.ShowWrongs}} checked="checked"{{end}}>
+        <label class="non-select" for="option_show_wrongs">show wrongs</label>
     </li>
 </ul>
 <script>
@@ -27,7 +25,8 @@
             hintSelector: '#sudokuHint',
             options: {
                 useHighlights: '#option_use_highlights',
-                useCandidates: '#option_use_candidates'
+                showCandidates: '#option_show_candidates',
+                showWrongs: '#option_show_wrongs'
             }
         });
         let ws = new WS({

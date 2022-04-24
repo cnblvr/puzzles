@@ -9,14 +9,20 @@ import (
 )
 
 type RenderDataGameID struct {
-	GameID          string
-	UserPreferences *app.UserPreferences
+	GameID         string
+	UseHighlights  bool
+	ShowCandidates bool
+	ShowWrongs     bool
 }
 
 func (srv *service) HandleGameID(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	log, session := FromContextLogger(ctx), FromContextSession(ctx)
-	renderData := RenderDataGameID{}
+	renderData := RenderDataGameID{
+		UseHighlights:  app.DefaultUseHighlights,
+		ShowCandidates: app.DefaultShowCandidates,
+		ShowWrongs:     app.DefaultShowWrongs,
+	}
 
 	gameID, err := app.EndpointGameID{}.MuxParse(r)
 	if err != nil {
@@ -49,11 +55,14 @@ func (srv *service) HandleGameID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userPreferences *app.UserPreferences
 	if session.UserID > 0 {
-		userPreferences, _ = srv.userRepository.GetUserPreferences(ctx, session.UserID)
+		up, err := srv.userRepository.GetUserPreferences(ctx, session.UserID)
+		if err == nil {
+			renderData.UseHighlights = up.UseHighlights
+			renderData.ShowCandidates = up.ShowCandidates
+			renderData.ShowWrongs = up.ShowWrongs
+		}
 	}
-	renderData.UserPreferences = userPreferences
 
 	srv.executeTemplate(ctx, w, templates.PageGameID, func(params *templates.Params) {
 		params.Header.Title = "Puzzle game"

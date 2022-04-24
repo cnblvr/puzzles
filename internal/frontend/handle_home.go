@@ -65,13 +65,29 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 			{ID: string(app.PuzzleLevelDemon), Name: "Demon", Disabled: true},
 			{ID: string(app.PuzzleLevelCustom), Name: "Custom", Disabled: true},
 		},
+		CandidatesAtStart: app.DefaultCandidatesAtStart,
 	}
 
-	var userPreferences *app.UserPreferences
+	var up *app.UserPreferences
 	if session.UserID > 0 {
-		userPreferences, _ = srv.userRepository.GetUserPreferences(ctx, session.UserID)
+		var err error
+		up, err = srv.userRepository.GetUserPreferences(ctx, session.UserID)
+		if err == nil {
+			for i := 0; i < len(renderData.PuzzleTypes); i++ {
+				renderData.PuzzleTypes[i].Default = false
+				if renderData.PuzzleTypes[i].ID == up.PuzzleType.String() {
+					renderData.PuzzleTypes[i].Default = true
+				}
+			}
+			for i := 0; i < len(renderData.PuzzleLevels); i++ {
+				renderData.PuzzleLevels[i].Default = false
+				if renderData.PuzzleLevels[i].ID == up.PuzzleLevel.String() {
+					renderData.PuzzleLevels[i].Default = true
+				}
+			}
+			renderData.CandidatesAtStart = up.CandidatesAtStart
+		}
 	}
-	renderData.UserPreferences = userPreferences
 
 	if r.Method == http.MethodPost {
 		var (
@@ -86,7 +102,7 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 			}
 			log = log.With().Stringer("puzzle_type", post.PuzzleType).Stringer("puzzle_level", post.Level).Logger()
 
-			_, game, err := srv.puzzleRepository.CreateRandomPuzzleGame(ctx, app.CreateRandomPuzzleGameParams{
+			puzzle, game, err := srv.puzzleRepository.CreateRandomPuzzleGame(ctx, app.CreateRandomPuzzleGameParams{
 				Session: session,
 				Type:    post.PuzzleType,
 				Level:   post.Level,
@@ -102,18 +118,23 @@ func (srv *service) HandleHome(w http.ResponseWriter, r *http.Request) {
 				renderData.ErrorMessage = msgInternalServerError
 				return
 			}
-			game.CandidatesAtStart = post.CandidatesAtStart
+			game.State = puzzle.Clues
+			if post.CandidatesAtStart {
+				game.StateCandidates = puzzle.Candidates
+			} else {
+				game.StateCandidates = "{}"
+			}
 			if err := srv.puzzleRepository.UpdatePuzzleGame(ctx, game); err != nil {
 				log.Error().Err(err).Msg("failed to update puzzle game")
 				renderData.ErrorMessage = msgInternalServerError
 				return
 			}
 
-			if userPreferences != nil {
-				userPreferences.PuzzleType = post.PuzzleType
-				userPreferences.PuzzleLevel = post.Level
-				userPreferences.CandidatesAtStart = post.CandidatesAtStart
-				if err := srv.userRepository.SetUserPreferences(ctx, userPreferences); err != nil {
+			if up != nil {
+				up.PuzzleType = post.PuzzleType
+				up.PuzzleLevel = post.Level
+				up.CandidatesAtStart = post.CandidatesAtStart
+				if err := srv.userRepository.SetUserPreferences(ctx, up); err != nil {
 					log.Warn().Err(err).Msg("failed to set user preferences")
 				}
 			}
@@ -140,8 +161,8 @@ type listItem struct {
 }
 
 type RenderDataHome struct {
-	PuzzleTypes     []listItem
-	PuzzleLevels    []listItem
-	UserPreferences *app.UserPreferences
-	ErrorMessage    string
+	PuzzleTypes       []listItem
+	PuzzleLevels      []listItem
+	CandidatesAtStart bool
+	ErrorMessage      string
 }

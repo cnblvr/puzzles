@@ -15,7 +15,7 @@ Controls.
 * The `[Backspace]`/`[Space]`/`[0]` keys or the `(⨯)` button clear the answer. In the "candidate input" mode, candidates are cleared.
 * Keys `[1]`-`[9]` or buttons `(1)`-`(9)` put a number depending on the mode. 
 * The `(h)` button suggests a possible strategy. **BUG**: the assistant focuses on your candidates, so keep them without mistakes.
-* The `use highlights` and `use candidates` checkboxes make it easier to find a solution. The first turns on the highlight for the selected digit. The second shows or hides the candidates.
+* The `use highlights`, `show candidates` and `show wrongs` checkboxes make it easier to find a solution. The first turns on the highlight for the selected digit. The second shows or hides the candidates. The third shows or hides your current mistakes.
 
 1. Create redis config and development environments
 ```shell

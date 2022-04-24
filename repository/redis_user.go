@@ -262,10 +262,8 @@ func (r *redisRepository) GetUserPreferences(ctx context.Context, userID int64) 
 		return nil, errors.Wrap(err, "failed to get user preferences")
 	}
 
-	preferences := &app.UserPreferences{
-		PuzzleType:  app.DefaultPuzzleType,
-		PuzzleLevel: app.DefaultPuzzleLevel,
-	}
+	preferences := &app.UserPreferences{}
+	preferences.Defaults()
 	if err := redis.ScanStruct(preferencesReply, preferences); err != nil {
 		return nil, errors.Wrap(err, "failed to scan user preferences")
 	}

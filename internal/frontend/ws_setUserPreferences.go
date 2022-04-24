@@ -11,8 +11,9 @@ func init() {
 }
 
 type wsSetUserPreferencesRequest struct {
-	UseHighlights *bool `json:"use_highlights"`
-	UseCandidates *bool `json:"use_candidates"`
+	UseHighlights  *bool `json:"use_highlights"`
+	ShowCandidates *bool `json:"show_candidates"`
+	ShowWrongs     *bool `json:"show_wrongs"`
 }
 
 func (r *wsSetUserPreferencesRequest) Validate(ctx context.Context) app.Status {
@@ -35,8 +36,11 @@ func (r *wsSetUserPreferencesRequest) Execute(ctx context.Context) (wsIncomingRe
 	if r.UseHighlights != nil {
 		userPreferences.UseHighlights = *r.UseHighlights
 	}
-	if r.UseCandidates != nil {
-		userPreferences.UseCandidates = *r.UseCandidates
+	if r.ShowCandidates != nil {
+		userPreferences.ShowCandidates = *r.ShowCandidates
+	}
+	if r.ShowWrongs != nil {
+		userPreferences.ShowWrongs = *r.ShowWrongs
 	}
 
 	if err := srv.userRepository.SetUserPreferences(ctx, userPreferences); err != nil {

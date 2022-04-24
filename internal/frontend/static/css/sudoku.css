@@ -16,6 +16,7 @@
     display: flex;
     flex-direction: column;
 
+    color: black;
     border: solid black;
     border-width: 3px 0 0 3px;
     user-select: none;
@@ -60,7 +61,10 @@
 .sud-dgt {
     font-size: 36px;
 }
-.sud-cll.error .sud-dgt, .sud-cll .sud-cnd .error {
+.sudoku.hide-wrongs .sud-dgt {
+    color: black !important;
+}
+.sud-cll.wrong .sud-dgt, .sud-cll .sud-cnd .wrong {
     color: #ff0000;
 }
 
@@ -82,6 +86,9 @@
 }
 .sudoku.hide-candidates .sud-cnd div {
     opacity: 0;
+}
+.sudoku.hide-wrongs .sud-cnd div {
+    color: #a0a0a0 !important;
 }
 .sud-cnd div.hidden {
     opacity: 0;

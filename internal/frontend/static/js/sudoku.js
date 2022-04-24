@@ -10,7 +10,8 @@ class Sudoku {
     #_hint = undefined;
 
     #_option_useHighlights = undefined;
-    #_option_useCandidates = undefined;
+    #_option_showCandidates = undefined;
+    #_option_showWrongs = undefined;
 
     constructor(param) {
         if (!param)
@@ -55,18 +56,33 @@ class Sudoku {
                     }
                 });
             }
-            if (param.options.useCandidates) {
-                this.#_option_useCandidates = document.querySelector(param.options.useCandidates);
-                if (!this.#_option_useCandidates)
-                    throw 'sudoku: object by parameter \'options.useCandidates\' not found';
-                if (this.#_isUseCandidates()) this.#_object.classList.remove('hide-candidates');
+            if (param.options.showCandidates) {
+                this.#_option_showCandidates = document.querySelector(param.options.showCandidates);
+                if (!this.#_option_showCandidates)
+                    throw 'sudoku: object by parameter \'options.showCandidates\' not found';
+                if (this.#_isShowCandidates()) this.#_object.classList.remove('hide-candidates');
                 else this.#_object.classList.add('hide-candidates');
-                this.#_option_useCandidates.addEventListener('change', (e) => {
-                    this.#ws.send('setUserPreferences', { use_candidates: e.currentTarget.checked });
+                this.#_option_showCandidates.addEventListener('change', (e) => {
+                    this.#ws.send('setUserPreferences', { show_candidates: e.currentTarget.checked });
                     if (e.currentTarget.checked) {
                         this.#_object.classList.remove('hide-candidates');
                     } else {
                         this.#_object.classList.add('hide-candidates');
+                    }
+                });
+            }
+            if (param.options.showWrongs) {
+                this.#_option_showWrongs = document.querySelector(param.options.showWrongs);
+                if (!this.#_option_showWrongs)
+                    throw 'sudoku: object by parameter \'options.showWrongs\' not found';
+                if (this.#_isShowWrongs()) this.#_object.classList.remove('hide-wrongs');
+                else this.#_object.classList.add('hide-wrongs');
+                this.#_option_showWrongs.addEventListener('change', (e) => {
+                    this.#ws.send('setUserPreferences', { show_wrongs: e.currentTarget.checked });
+                    if (e.currentTarget.checked) {
+                        this.#_object.classList.remove('hide-wrongs');
+                    } else {
+                        this.#_object.classList.add('hide-wrongs');
                     }
                 });
             }
@@ -202,7 +218,7 @@ class Sudoku {
         this.#_object.addEventListener('api_getPuzzle', (e) => {
             let body = e.detail.body;
             let puzzle = body.is_new ? body.puzzle : body.state_puzzle;
-            let candidates = body.is_new ? body.candidates : body.state_candidates;
+            let candidates = body.state_candidates;
             this.#_object.querySelectorAll('.sud-row').forEach((_row, row) => {
                 _row.querySelectorAll('.sud-cll').forEach((_cell, col) => {
                     this.#placeDigit(_cell, '0', true);
@@ -218,21 +234,21 @@ class Sudoku {
                 });
             });
             if (!body.is_new) {
-                this.#deleteErrors();
-                this.#setErrors(body.errors, body.errorsCandidates);
+                this.#deleteWrongs();
+                this.#setWrongs(body.wrongs, body.wrongsCandidates);
             }
             if (body.is_win) this.#isWin = true;
         });
 
         this.#_object.addEventListener('api_makeStep', (e) => {
             let body = e.detail.body;
-            this.#deleteErrors();
+            this.#deleteWrongs();
             if (body.win) {
                 this.#isWin = true;
                 alert('win'); // TODO
                 return;
             }
-            this.#setErrors(body.errors, body.errorsCandidates);
+            this.#setWrongs(body.wrongs, body.wrongsCandidates);
         });
 
         this.#_object.addEventListener('api_getHint', (e) => {
@@ -315,8 +331,12 @@ class Sudoku {
         this.#placeDigit(this.#_object.querySelector('.sud-cll.active'), digit, notMakeStep);
     }
 
-    #_isUseCandidates() {
-        return !!(this.#_option_useCandidates && this.#_option_useCandidates.checked);
+    #_isShowCandidates() {
+        return !!(this.#_option_showCandidates && this.#_option_showCandidates.checked);
+    }
+
+    #_isShowWrongs() {
+        return !!(this.#_option_showWrongs && this.#_option_showWrongs.checked);
     }
 
     #setCandidatesFor(_cell, cands) {
@@ -428,29 +448,29 @@ class Sudoku {
         this.#toggleCandidate(this.#_object.querySelector('.sud-cll.active'), digit);
     }
 
-    #deleteErrors() {
+    #deleteWrongs() {
         this.#_object.querySelectorAll('.sud-cll').forEach((_cell) => {
-            _cell.classList.remove('error');
+            _cell.classList.remove('wrong');
         });
         this.#_object.querySelectorAll('.sud-cnd div').forEach((_cnd) => {
-            _cnd.classList.remove('error');
+            _cnd.classList.remove('wrong');
         });
     }
 
-    #setErrors(errors, errorsCandidates) {
-        errors = this.#parsePoints(errors);
+    #setWrongs(wrongs, wrongsCandidates) {
+        wrongs = this.#parsePoints(wrongs);
         this.#_object.querySelectorAll('.sud-row').forEach((_row, row) => {
             _row.querySelectorAll('.sud-cll').forEach((_cell, col) => {
-                errors.forEach((p) => {
+                wrongs.forEach((p) => {
                     if (p.row === row && p.col === col) {
-                        _cell.classList.add('error');
+                        _cell.classList.add('wrong');
                     }
                 });
-                if (errorsCandidates.base) {
-                    let candidates = errorsCandidates.base[this.#stringifyPoint(row, col)];
+                if (wrongsCandidates.base) {
+                    let candidates = wrongsCandidates.base[this.#stringifyPoint(row, col)];
                     if (candidates) {
                         candidates.forEach((cand) => {
-                            _cell.querySelectorAll('.sud-cnd div')[cand - 1].classList.add('error');
+                            _cell.querySelectorAll('.sud-cnd div')[cand - 1].classList.add('wrong');
                         });
                     }
                 }

@@ -53,15 +53,15 @@ func (r *wsMakeStepRequest) Execute(ctx context.Context) (wsIncomingReply, app.S
 		return rpl, nil
 	}
 
-	rpl.Errors = statePuzzle.GetWrongPoints()
-	rpl.ErrorsCandidates = json.RawMessage(wrongCandidates)
+	rpl.Wrongs = statePuzzle.GetWrongPoints()
+	rpl.WrongsCandidates = json.RawMessage(wrongCandidates)
 
 	return rpl, nil
 }
 
 // TODO handle and test
 type wsMakeStepReply struct {
-	Errors           []app.Point     `json:"errors,omitempty"`
-	ErrorsCandidates json.RawMessage `json:"errorsCandidates,omitempty"`
+	Wrongs           []app.Point     `json:"wrongs,omitempty"`
+	WrongsCandidates json.RawMessage `json:"wrongsCandidates,omitempty"`
 	Win              bool            `json:"win,omitempty"`
 }

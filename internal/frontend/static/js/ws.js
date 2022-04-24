@@ -48,8 +48,8 @@ class WS {
             if (this.#debug) console.log('ws: receive message:', e.data);
             let msg = JSON.parse(e.data);
             if (!msg.method) return;
-            if (msg.error) {
-                console.error('api', msg.method, 'error:', msg.error);
+            if (msg.errorCode) {
+                console.error('api method:', msg.method, 'error:', msg.error, 'error code: ', msg.errorCode);
                 return;
             }
             this.#sudoku.dispatchEvent(new CustomEvent('api_'+msg.method, {detail: msg}));

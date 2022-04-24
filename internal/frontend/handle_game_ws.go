@@ -69,6 +69,7 @@ func (srv *service) HandleGameWs(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if status, ok := err.(app.Status); ok {
 				resp.Error, resp.ErrorCode = status.GetMessage(), status.GetCode()
+				log.Debug().Err(status.GetError()).Msgf("error status")
 			} else {
 				resp.Error, resp.ErrorCode = status.Error(), app.StatusUnknown.GetCode()
 			}
