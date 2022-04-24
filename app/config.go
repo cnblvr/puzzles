@@ -8,6 +8,7 @@ import (
 )
 
 type Config interface {
+	Debug() bool
 	SecCookieSecrets() ([]byte, []byte, error)
 	RedisUserConn() (string, string, int, error)
 	RedisPuzzleConn() (string, string, int, error)
@@ -21,6 +22,7 @@ func NewConfig() Config {
 }
 
 const (
+	envvarDebug             = "DEBUG"
 	envvarSecCookieHashKey  = "SEC_COOKIE_HASH_KEY"
 	envvarSecCookieBlockKey = "SEC_COOKIE_BLOCK_KEY"
 	envvarRedisAddress      = "REDIS_ADDRESS"
@@ -29,6 +31,11 @@ const (
 	envvarRedisPuzzleDB     = "REDIS_PUZZLE_DB"
 	envvarPasswordPepper    = "PASSWORD_PEPPER"
 )
+
+func (c config) Debug() bool {
+	debug, _ := strconv.ParseBool(os.Getenv(envvarDebug))
+	return debug
+}
 
 func (c config) SecCookieSecrets() ([]byte, []byte, error) {
 	hashKey, err := c.getBytes(envvarSecCookieHashKey)

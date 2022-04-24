@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-func NewRedisUserRepository(dial func() (redis.Conn, error)) (app.UserRepository, error) {
-	return newRedisRepository(dial)
+func NewRedisUserRepository(dial func() (redis.Conn, error), debug bool) (app.UserRepository, error) {
+	return newRedisRepository(dial, debug)
 }
 
 func (r *redisRepository) CreateSession(ctx context.Context, userID int64, expiration time.Duration) (*app.Session, error) {

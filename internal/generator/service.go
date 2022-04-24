@@ -26,6 +26,7 @@ func NewService() (app.ServiceGenerator, error) {
 		config: app.NewConfig(),
 		rnd:    rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
+	app.InitHumanLogger(srv.config.Debug())
 
 	var err error
 	srv.puzzleRepository, err = repository.NewRedisPuzzleRepository(func() (redis.Conn, error) {
@@ -38,7 +39,7 @@ func NewService() (app.ServiceGenerator, error) {
 			redis.DialPassword(password),
 			redis.DialDatabase(db),
 		)
-	})
+	}, srv.config.Debug())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create puzzle generator repository")
 	}

@@ -10,7 +10,6 @@ import (
 )
 
 func main() {
-	app.InitHumanLogger()
 	srv, err := frontend.NewService()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create frontend service")
@@ -58,8 +57,8 @@ func main() {
 	r.MethodNotAllowedHandler = mwChainError(http.HandlerFunc(srv.HandleMethodNotAllowed))
 	r.Path(app.EndpointInternalServerError).Methods(http.MethodGet).HandlerFunc(srv.HandleInternalServerError)
 
-	const address = ":8080" // TODO env var
-	log.Info().Msgf("service started on %s...", address)
+	const address = ":8080"
+	log.Info().Str("name", "frontend").Str("conn", address).Msgf("service started...")
 	if err = http.ListenAndServe(address, r); err != nil {
 		log.Fatal().Err(err).Msg("failed to listen and serve")
 	}

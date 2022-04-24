@@ -50,6 +50,7 @@ func (r *wsMakeStepRequest) Execute(ctx context.Context) (wsIncomingReply, app.S
 		// WIN
 		r.game.IsWin = true
 		rpl.Win = true
+		log.Info().Stringer("game_id", r.game.ID).Msg("win")
 		return rpl, nil
 	}
 

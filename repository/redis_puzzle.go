@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-func NewRedisPuzzleRepository(dial func() (redis.Conn, error)) (app.PuzzleRepository, error) {
-	return newRedisRepository(dial)
+func NewRedisPuzzleRepository(dial func() (redis.Conn, error), debug bool) (app.PuzzleRepository, error) {
+	return newRedisRepository(dial, debug)
 }
 
 func (r *redisRepository) CreateRandomPuzzleGame(ctx context.Context, params app.CreateRandomPuzzleGameParams) (*app.Puzzle, *app.PuzzleGame, error) {
@@ -190,7 +190,7 @@ func (r *redisRepository) GetAmountUnsolvedPuzzlesForAllUsers(ctx context.Contex
 				return 0, errors.Wrapf(err, "failed to union solved puzzles for user %d", userID)
 			}
 		}
-		log.Info().Str("duration", time.Since(startTime).String()).Msgf("SUNIONSTORE by all users")
+		log.Debug().Str("duration", time.Since(startTime).String()).Msgf("SUNIONSTORE by all users")
 		defer func() {
 			if _, err := conn.Do("DEL", keyUnion); err != nil {
 				log.Warn().Err(err).Msg("failed to delete temporary key of union")
@@ -209,7 +209,7 @@ func (r *redisRepository) GetAmountUnsolvedPuzzlesForAllUsers(ctx context.Contex
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get complement of union in all puzzles")
 	}
-	log.Info().Str("duration", time.Since(startTime).String()).Msgf("SDIFFSTORE by all users")
+	log.Debug().Str("duration", time.Since(startTime).String()).Msgf("SDIFFSTORE by all users")
 	defer func() {
 		if _, err := conn.Do("DEL", keyDiff); err != nil {
 			log.Warn().Err(err).Msg("failed to delete temporary key of complement")

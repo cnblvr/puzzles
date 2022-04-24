@@ -33,6 +33,7 @@ func (srv *service) HandleGameWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
+	log.Info().Msg("ws connection opened")
 	for {
 		ctx := context.Background()
 		ctx = NewContextLogger(ctx, log)
@@ -46,7 +47,7 @@ func (srv *service) HandleGameWs(w http.ResponseWriter, r *http.Request) {
 				websocket.CloseNormalClosure,
 				websocket.CloseGoingAway,
 			) {
-				log.Debug().Err(err).Msg("connection closed")
+				log.Info().Err(err).Msg("ws connection closed")
 				return
 			}
 			log.Error().Err(err).Msg("failed to read message")
@@ -69,7 +70,7 @@ func (srv *service) HandleGameWs(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if status, ok := err.(app.Status); ok {
 				resp.Error, resp.ErrorCode = status.GetMessage(), status.GetCode()
-				log.Debug().Err(status.GetError()).Msgf("error status")
+				log.Error().Err(status.GetError()).Msgf("error status")
 			} else {
 				resp.Error, resp.ErrorCode = status.Error(), app.StatusUnknown.GetCode()
 			}

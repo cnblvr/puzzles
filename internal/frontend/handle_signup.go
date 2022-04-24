@@ -32,15 +32,15 @@ func (srv *service) HandleSignup(w http.ResponseWriter, r *http.Request) {
 			username, password, repeatPassword :=
 				r.PostFormValue("username"), r.PostFormValue("password"), r.PostFormValue("repeat_password")
 			if err := app.ValidateUsername(username); err != nil {
-				log.Debug().Err(err).Msgf("validate username")
+				log.Warn().Err(err).Msgf("validate username")
 				return msgUsernameWrong
 			}
 			if err := app.ValidatePassword(username); err != nil {
-				log.Debug().Err(err).Msgf("validate password")
+				log.Warn().Err(err).Msgf("validate password")
 				return msgPasswordWrong
 			}
 			if password != repeatPassword {
-				log.Debug().Msgf("passwords don't match")
+				log.Warn().Msgf("passwords don't match")
 				return msgRepeatPasswordWrong
 			}
 			salt := app.GeneratePasswordSalt()
@@ -52,7 +52,7 @@ func (srv *service) HandleSignup(w http.ResponseWriter, r *http.Request) {
 			user, err := srv.userRepository.CreateUser(ctx, username, salt, hash)
 			if err != nil {
 				if errors.Is(err, app.ErrorUsernameIsNotVacant) {
-					log.Debug().Msg("username is not vacant")
+					log.Warn().Msg("username is not vacant")
 					return msgUsernameNotVacant
 				}
 				log.Error().Err(err).Send()
@@ -69,6 +69,7 @@ func (srv *service) HandleSignup(w http.ResponseWriter, r *http.Request) {
 			}
 			srv.setCookieNotificationToResponse(w, app.NotificationSuccess, "You have successfully signed up.")
 			http.Redirect(w, r, app.EndpointHome, http.StatusSeeOther)
+			log.Info().Int64("user_id", session.UserID).Msg("signed up")
 			return ""
 		}()
 		if errMsg == "" {

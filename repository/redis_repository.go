@@ -9,16 +9,19 @@ import (
 )
 
 type redisRepository struct {
-	pool *redis.Pool
+	pool  *redis.Pool
+	debug bool
 }
 
 func (r *redisRepository) connect() redis.Conn {
 	conn := r.pool.Get()
-	conn = redis.NewLoggingConn(conn, log.New(os.Stdout, "", 0), "REDIS: ")
+	if r.debug {
+		conn = redis.NewLoggingConn(conn, log.New(os.Stdout, "", 0), "REDIS: ")
+	}
 	return conn
 }
 
-func newRedisRepository(dial func() (redis.Conn, error)) (*redisRepository, error) {
+func newRedisRepository(dial func() (redis.Conn, error), debug bool) (*redisRepository, error) {
 	pool := &redis.Pool{
 		Dial: dial,
 		TestOnBorrow: func(c redis.Conn, t time.Time) error {
@@ -38,6 +41,7 @@ func newRedisRepository(dial func() (redis.Conn, error)) (*redisRepository, erro
 		return nil, errors.Wrap(err, "failed to ping redis connection")
 	}
 	return &redisRepository{
-		pool: pool,
+		pool:  pool,
+		debug: debug,
 	}, nil
 }

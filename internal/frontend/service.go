@@ -33,6 +33,7 @@ func NewService() (app.ServiceFrontend, error) {
 	srv := &service{
 		config: app.NewConfig(),
 	}
+	app.InitHumanLogger(srv.config.Debug())
 
 	var err error
 	srv.templates, err = template.New("frontend").Funcs(templates.Functions()).
@@ -51,7 +52,7 @@ func NewService() (app.ServiceFrontend, error) {
 			redis.DialPassword(password),
 			redis.DialDatabase(db),
 		)
-	})
+	}, srv.config.Debug())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create user repository")
 	}
@@ -65,7 +66,7 @@ func NewService() (app.ServiceFrontend, error) {
 			redis.DialPassword(password),
 			redis.DialDatabase(db),
 		)
-	})
+	}, srv.config.Debug())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create puzzle game repository")
 	}

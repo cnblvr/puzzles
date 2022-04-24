@@ -20,10 +20,14 @@ func (srv *service) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 		errMsg = func() string {
 			username, password := r.PostFormValue("username"), r.PostFormValue("password")
+			if username == "" {
+				log.Warn().Msg("username is empty")
+				return msgUsernamePasswordWrong
+			}
 			user, err := srv.userRepository.GetUserByUsername(ctx, username)
 			if err != nil {
 				if errors.Is(err, app.ErrorUserNotFound) {
-					log.Debug().Err(err).Send()
+					log.Warn().Err(err).Send()
 					return msgUsernamePasswordWrong
 				}
 				log.Error().Err(err).Send()
@@ -35,7 +39,7 @@ func (srv *service) HandleLogin(w http.ResponseWriter, r *http.Request) {
 				return msgInternalServerError
 			}
 			if !verified {
-				log.Debug().Msg("password is not valid")
+				log.Warn().Msg("password is not valid")
 				return msgUsernamePasswordWrong
 			}
 			session.UserID = user.ID
@@ -49,6 +53,7 @@ func (srv *service) HandleLogin(w http.ResponseWriter, r *http.Request) {
 			}
 			srv.setCookieNotificationToResponse(w, app.NotificationSuccess, "You have successfully logged in.")
 			http.Redirect(w, r, app.EndpointHome, http.StatusSeeOther)
+			log.Info().Int64("user_id", session.UserID).Msg("logged in")
 			return ""
 		}()
 		if errMsg == "" {
