@@ -363,18 +363,22 @@ class Sudoku {
         switch (dir) {
             case 'up':
                 let _prev = _row.previousElementSibling;
-                if (!_prev) return;
+                if (!_prev) _prev = this.#getLast(_row);
                 _cell = _prev.querySelectorAll('.sud-cll').item(this.#getIndex(_cell));
                 break;
             case 'right':
-                _cell = _cell.nextElementSibling; break;
+                if (!_cell.nextElementSibling) _cell = this.#getFirst(_cell);
+                else _cell = _cell.nextElementSibling;
+                break;
             case 'down':
                 let _next = _row.nextElementSibling;
-                if (!_next) return;
+                if (!_next) _next = this.#getFirst(_row);
                 _cell = _next.querySelectorAll('.sud-cll').item(this.#getIndex(_cell));
                 break;
             case 'left':
-                _cell = _cell.previousElementSibling; break;
+                if (!_cell.previousElementSibling) _cell = this.#getLast(_cell);
+                else _cell = _cell.previousElementSibling;
+                break;
         }
         if (!_cell) return;
         let isAlready = _cell.classList.contains('active');
@@ -498,6 +502,18 @@ class Sudoku {
             index++;
         }
         return index;
+    }
+
+    #getFirst(_node) {
+        while(_node.previousElementSibling)
+            _node = _node.previousElementSibling;
+        return _node;
+    }
+
+    #getLast(_node) {
+        while(_node.nextElementSibling)
+            _node = _node.nextElementSibling;
+        return _node;
     }
 
     #parsePoints(points) {
