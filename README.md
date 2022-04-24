@@ -1,8 +1,15 @@
-V.2
+V.2.1
 
 Demo: [stuffy.space](https://stuffy.space/)
 
 ![/screenshot.png](/screenshot.png)
+
+### V.2.1
+
+* new checkbox "show wrongs"
+* infinite movement of the active cell on the keyboard
+
+### V.2
 
 Unlike `V.1`, the generator creates puzzles with an emphasis on logical strategies. This version implements strategies:
 * easy: Naked Single;
@@ -31,6 +38,8 @@ echo 'PASSWORD_PEPPER='$(head -c 32 /dev/random | base64) >> dev.env
 export REDISPASSWORD=$(head -c 16 /dev/random | base64)
 echo "requirepass $REDISPASSWORD" >> redis.conf
 echo "REDIS_PASSWORD=$REDISPASSWORD" >> dev.env
+# optional: enable debug logs
+echo "DEBUG=true" >> dev.env
 ```
 
 2. Run this application
