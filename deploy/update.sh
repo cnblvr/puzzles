@@ -14,11 +14,14 @@ release_version=${2}
 
 # download release
 echo 'Download release...'
+service_frontend=${domain}'-frontend'
+systemctl stop ${service_frontend}
 wget -O /usr/local/bin/frontend https://github.com/cnblvr/puzzles/releases/download/${release_version}/frontend
 chmod +x /usr/local/bin/frontend
-service_frontend=${domain}'-frontend'
-systemctl restart ${service_frontend}
+systemctl start ${service_frontend}
+
+service_generator=${domain}'-generator'
+systemctl stop ${service_generator}
 wget -O /usr/local/bin/generator https://github.com/cnblvr/puzzles/releases/download/${release_version}/generator
 chmod +x /usr/local/bin/generator
-service_generator=${domain}'-generator'
-systemctl restart ${service_generator}
+systemctl start ${service_generator}
