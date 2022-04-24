@@ -46,6 +46,7 @@ class Sudoku {
                 if (!this.#_option_useHighlights)
                     throw 'sudoku: object by parameter \'options.useHighlights\' not found';
                 this.#_option_useHighlights.addEventListener('change', (e) => {
+                    document.activeElement.blur();
                     this.#ws.send('setUserPreferences', { use_highlights: e.currentTarget.checked });
                     if (e.currentTarget.checked) {
                         let _active = this.#_object.querySelector('.sud-cll.active');
@@ -63,6 +64,7 @@ class Sudoku {
                 if (this.#_isShowCandidates()) this.#_object.classList.remove('hide-candidates');
                 else this.#_object.classList.add('hide-candidates');
                 this.#_option_showCandidates.addEventListener('change', (e) => {
+                    document.activeElement.blur();
                     this.#ws.send('setUserPreferences', { show_candidates: e.currentTarget.checked });
                     if (e.currentTarget.checked) {
                         this.#_object.classList.remove('hide-candidates');
@@ -78,6 +80,7 @@ class Sudoku {
                 if (this.#_isShowWrongs()) this.#_object.classList.remove('hide-wrongs');
                 else this.#_object.classList.add('hide-wrongs');
                 this.#_option_showWrongs.addEventListener('change', (e) => {
+                    document.activeElement.blur();
                     this.#ws.send('setUserPreferences', { show_wrongs: e.currentTarget.checked });
                     if (e.currentTarget.checked) {
                         this.#_object.classList.remove('hide-wrongs');
